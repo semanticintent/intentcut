@@ -1,6 +1,6 @@
-import { spawn } from "node:child_process";
 import type { LoadedProject, ProjectScene } from "./manifest.js";
 import { resolveProjectPath } from "./manifest.js";
+import { runProcess } from "./process.js";
 
 interface FfprobeStream {
   codec_type?: string;
@@ -46,28 +46,12 @@ function runFfprobe(filePath: string): Promise<FfprobeOutput> {
     filePath,
   ];
 
-  return new Promise((resolve, reject) => {
-    const child = spawn("ffprobe", argumentsList, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => { stdout += chunk; });
-    child.stderr.on("data", (chunk: string) => { stderr += chunk; });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(`ffprobe failed for ${filePath}: ${stderr.trim()}`));
-        return;
-      }
-
-      try {
-        resolve(JSON.parse(stdout) as FfprobeOutput);
-      } catch (error) {
-        reject(new Error(`Could not parse ffprobe output for ${filePath}: ${String(error)}`));
-      }
-    });
+  return runProcess("ffprobe", argumentsList).then(({ stdout }) => {
+    try {
+      return JSON.parse(stdout) as FfprobeOutput;
+    } catch (error) {
+      throw new Error(`Could not parse ffprobe output for ${filePath}: ${String(error)}`);
+    }
   });
 }
 

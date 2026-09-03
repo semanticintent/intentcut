@@ -1,7 +1,11 @@
 export { formatDuration, parseDuration } from "./duration.js";
+export { checkBuild, formatBuildReport } from "./check.js";
 export { inspectMedia, inspectProjectMedia } from "./inspect.js";
 export { loadProject, projectManifestSchema, resolveProjectPath } from "./manifest.js";
 export { compileTimeline } from "./timeline.js";
+export { createRenderPlan, renderPreview } from "./render.js";
+export type { BuildReport, CheckResult } from "./check.js";
 export type { MediaInspection } from "./inspect.js";
 export type { LoadedProject, ProjectManifest, ProjectScene } from "./manifest.js";
 export type { TimelinePlan, TimelineScene } from "./timeline.js";
+export type { RenderPlan } from "./render.js";

@@ -14,11 +14,13 @@ Read the complete [concept](./CONCEPT.md).
 
 ## Status
 
-Milestone 1 is complete: the TypeScript compiler front end validates YAML
-manifests, inspects video through ffprobe, and resolves an exact timeline plan.
+Milestone 2 is complete. IntentCut validates YAML manifests, inspects media,
+resolves an exact timeline, compiles it through FFmpeg, and validates the
+rendered artifact with JSON and Markdown reports.
 
-The first proving experiment will reconstruct the completed Orbweaver WebMCP
-Challenge video from a declarative manifest and its existing production assets.
+The first proving experiment successfully reconstructed the completed
+Orbweaver WebMCP Challenge sequence from a declarative manifest and its existing
+production assets.
 
 ## Current commands
 
@@ -27,6 +29,8 @@ npm install
 npm run dev -- validate examples/orbweaver/intentcut.yaml
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- plan examples/orbweaver/intentcut.yaml
+npm run dev -- render examples/orbweaver/intentcut.yaml --preview
+npm run dev -- check examples/orbweaver/intentcut.yaml
 ```
 
 Run all compiler and test checks with:

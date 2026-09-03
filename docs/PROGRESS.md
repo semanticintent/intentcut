@@ -4,7 +4,7 @@ Last updated: 2026-09-03
 
 ## Current position
 
-**Phase:** Milestone 1 — compiler front end
+**Phase:** Milestone 2 — deterministic preview
 **Status:** Complete
 **Reference case:** Orbweaver WebMCP Challenge demo
 
@@ -56,15 +56,35 @@ The compiler front end, CLI, media inspection, and six unit tests pass on
 
 ## Milestone 2 — Deterministic preview
 
-- [ ] Define the engine-neutral render plan.
-- [ ] Generate card segments from still images.
-- [ ] Trim and speed-adjust video scenes.
-- [ ] Normalize canvas size and frame rate.
-- [ ] Concatenate the visual timeline.
-- [ ] Mix final narration.
-- [ ] Normalize audio loudness.
-- [ ] Render a review-quality preview.
-- [ ] Produce JSON and Markdown validation reports.
+- [x] Define the engine-neutral render plan.
+- [x] Generate card segments from still images.
+- [x] Trim and speed-adjust video scenes.
+- [x] Normalize canvas size and frame rate.
+- [x] Concatenate the visual timeline.
+- [x] Mix final narration.
+- [x] Normalize audio loudness.
+- [x] Render a review-quality preview.
+- [x] Produce JSON and Markdown validation reports.
+
+## Milestone 2 verified result
+
+IntentCut compiled the Orbweaver reference manifest into a 7.7 MB preview in
+approximately 24 seconds. The generated build report passed every check:
+
+```text
+Resolution             1920x1080
+Frame rate             30.000 fps
+Duration               02:52.055 / 03:00.000
+Audio                   stereo
+Integrated loudness    -16.1 LUFS
+True peak              -1.28 dBTP
+Narration mode         human-final
+Result                 PASS
+```
+
+Visual sampling confirmed the opening push-in, both screen-recording sections,
+and the closing card. Rendered media and generated reports remain local and are
+intentionally ignored by Git.
 
 ## Later milestones
 
@@ -97,3 +117,16 @@ media, known editorial decisions, and a published comparison artifact.
 Synthetic narration is a timing and iteration instrument. It will be explicitly
 identified and non-publishable by default until the creator makes a deliberate
 final-narration decision.
+
+### 2026-09-03 — Reference narration source
+
+The individual Orbweaver voice takes were not retained. The proving manifest
+therefore reads the human narration track from the published final MP4. This is
+a reference-case accommodation, not the intended structure for new projects;
+future productions will keep replaceable narration sections as independent
+source files.
+
+### 2026-09-03 — Render transparency
+
+Every render records the resolved FFmpeg argument list beside its reports. The
+engine remains an inspectable adapter rather than hidden process state.

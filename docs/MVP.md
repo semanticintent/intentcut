@@ -48,6 +48,9 @@ intentcut plan <manifest>
 - Encode a review-quality preview.
 - Produce machine-readable and human-readable reports.
 
+**Status:** Complete. The Orbweaver reference render passes resolution, frame
+rate, duration, audio, loudness, true-peak, and narration-mode checks.
+
 ## Explicitly deferred
 
 - Agent or MCP tools.

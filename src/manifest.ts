@@ -45,9 +45,21 @@ export const projectManifestSchema = z.object({
     maximumDuration: durationSchema,
   }),
   scenes: z.array(z.discriminatedUnion("type", [imageSceneSchema, videoSceneSchema])).min(1),
+  audio: z.object({
+    narration: z.object({
+      source: z.string().min(1),
+      mode: z.enum(["human-final", "synthetic-prototype"]),
+    }),
+    loudness: z.object({
+      integrated: z.number().min(-70).max(-5).default(-16),
+      truePeak: z.number().min(-9).max(0).default(-1.5),
+      range: z.number().min(1).max(50).default(7),
+    }).default({ integrated: -16, truePeak: -1.5, range: 7 }),
+  }).optional(),
   output: z.object({
     file: z.string().min(1),
     codec: z.literal("h264").default("h264"),
+    reportDirectory: z.string().min(1).default("reports"),
   }),
 }).superRefine((manifest, context) => {
   const ids = new Set<string>();

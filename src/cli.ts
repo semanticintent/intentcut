@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 import { formatDuration } from "./duration.js";
+import { checkBuild, formatBuildReport } from "./check.js";
 import { inspectProjectMedia } from "./inspect.js";
 import { loadProject } from "./manifest.js";
 import { compileTimeline } from "./timeline.js";
+import { createRenderPlan, renderPreview } from "./render.js";
 
 function usage(): string {
   return [
@@ -13,13 +15,15 @@ function usage(): string {
     "  intentcut validate <manifest>",
     "  intentcut inspect <manifest>",
     "  intentcut plan <manifest>",
+    "  intentcut render <manifest> --preview",
+    "  intentcut check <manifest>",
   ].join("\n");
 }
 
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["validate", "inspect", "plan"].includes(command)) {
+  if (!command || !manifestPath || !["validate", "inspect", "plan", "render", "check"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -53,6 +57,30 @@ async function main(): Promise<void> {
   }
 
   const timeline = compileTimeline(project, inspections);
+
+  if (command === "render") {
+    if (!process.argv.includes("--preview")) {
+      throw new Error("Milestone 2 supports preview renders only. Pass --preview.");
+    }
+    if (!timeline.withinMaximumDuration) {
+      throw new Error("The planned timeline exceeds the configured maximum duration.");
+    }
+    const renderPlan = createRenderPlan(project, timeline);
+    console.log(`Rendering ${renderPlan.outputPath}`);
+    await renderPreview(renderPlan);
+    const report = await checkBuild(project, timeline);
+    console.log(formatBuildReport(report));
+    if (!report.passed) process.exitCode = 2;
+    return;
+  }
+
+  if (command === "check") {
+    const report = await checkBuild(project, timeline);
+    console.log(formatBuildReport(report));
+    if (!report.passed) process.exitCode = 2;
+    return;
+  }
+
   console.log(`IntentCut Plan — ${timeline.title}\n`);
   for (const scene of timeline.scenes) {
     const speed = scene.speed === 1 ? "" : ` · ${scene.speed}x`;
