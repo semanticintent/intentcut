@@ -1,0 +1,44 @@
+version: 1
+
+project:
+  title: Orbweaver WebMCP Challenge
+  resolution:
+    width: 1920
+    height: 1080
+  fps: 30
+  maximumDuration: 3m
+
+scenes:
+  - id: opening
+    type: image
+    source: ../../../orbweaver/challenge-video/assets/01-opening-card.png
+    duration: 5s
+    motion:
+      type: push-in
+      from: 1
+      to: 1.05
+
+  - id: create-proposal
+    type: video
+    source: ../../../orbweaver/challenge-video/recordings/screen/01-create.mov
+    trim:
+      in: 0s
+      out: 182.788s
+    speed: 4
+
+  - id: revise-and-undo
+    type: video
+    source: ../../../orbweaver/challenge-video/recordings/screen/02-revise-undo.mov
+    trim:
+      in: 0s
+      out: 112.915s
+    speed: 1
+
+  - id: closing
+    type: image
+    source: ../../../orbweaver/challenge-video/assets/02-closing-card.png
+    duration: 6s
+
+output:
+  file: renders/orbweaver-preview.mp4
+  codec: h264

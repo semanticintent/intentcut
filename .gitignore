@@ -1,0 +1,19 @@
+.DS_Store
+node_modules/
+dist/
+coverage/
+
+# Local media and rendered artifacts
+recordings/
+narration/*.wav
+narration/*.aiff
+narration/*.mp3
+renders/
+reports/
+
+# Environment and temporary files
+.env
+.env.*
+!.env.example
+*.tmp
+*.log
