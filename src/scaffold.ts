@@ -16,6 +16,10 @@ inspection:
     samples: 12
     columns: 4
     frameWidth: 480
+  cutDetection:
+    threshold: 0.18
+    minimumGap: 1s
+    maximumCandidates: 20
 
 scenes:
   - id: opening

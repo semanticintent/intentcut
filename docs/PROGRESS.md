@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 5 — assisted source inspection
-**Status:** In progress · contact sheets complete
+**Status:** In progress · contact sheets and likely-cut detection complete
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -166,7 +166,9 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 - [x] Render branded, timecoded contact sheets.
 - [x] Produce machine-readable and human-readable source-analysis reports.
 - [x] Verify both real Orbweaver recordings visually.
-- [ ] Detect silence and likely cut regions.
+- [x] Detect and bound likely visual cut regions.
+- [x] Verify suggested cut regions against real source frames.
+- [ ] Detect silence regions in sources with audio.
 - [ ] Attach transcription metadata through a provider-neutral adapter.
 - [ ] Generate an editable first-cut proposal without applying it.
 
@@ -182,6 +184,25 @@ create-proposal        12 frames · 4x3 · PASS
 revise-and-undo        12 frames · 4x3 · PASS
 Automated suite        16 tests across 7 files · PASS
 ```
+
+## Milestone 5B verified result
+
+Reduced-resolution scene-change analysis initially exposed ordinary cursor and
+interface motion alongside real transitions. IntentCut now applies the declared
+confidence threshold itself, collapses nearby events, and caps candidates per
+scene. On the two Orbweaver recordings this reduced 40 raw bounded hits to three
+credible review moments:
+
+```text
+create-proposal   00:09.000   playground becomes visible   0.4127
+revise-and-undo   00:47.100   focused inspector state      0.2677
+revise-and-undo   01:43.600   undo restores prior graph    0.2510
+Automated suite   17 tests across 7 files                  PASS
+```
+
+Each candidate uses source time—not compiled timeline time—so a creator can
+inspect or amend the original trim directly. No candidate is applied to the
+manifest.
 
 ## Decision log
 
@@ -256,3 +277,10 @@ transcription findings will follow the same proposal-before-mutation boundary.
 Contact-sheet frames are sampled at the midpoint of equal intervals inside the
 declared source range. This avoids overrepresenting exact trim boundaries and
 makes every generated sheet deterministic for a given manifest and recording.
+
+### 2026-09-03 — Bounded cut suggestions
+
+Likely-cut detection operates at reduced resolution and 10 frames per second.
+The manifest declares its confidence threshold, minimum gap, and maximum result
+count. IntentCut independently enforces all three after parsing FFmpeg metadata,
+then reports source-timecoded candidates without modifying the edit.

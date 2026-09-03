@@ -75,10 +75,16 @@ inspection:
     samples: 12
     columns: 4
     frameWidth: 480
+  cutDetection:
+    threshold: 0.18
+    minimumGap: 1s
+    maximumCandidates: 20
 ```
 
 The generated JPEG plus JSON and Markdown reports remain review artifacts under
-the configured report directory.
+the configured report directory. Likely-cut detection scans reduced-resolution
+frames, collapses nearby hits, and emits a bounded list of source-timecoded
+suggestions. It never changes trims automatically.
 
 Create a narration-ready production workspace with:
 

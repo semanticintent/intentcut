@@ -114,7 +114,15 @@ export const projectManifestSchema = z.object({
       columns: z.number().int().min(2).max(6).default(4),
       frameWidth: z.number().int().min(240).max(960).default(480),
     }).default({ samples: 12, columns: 4, frameWidth: 480 }),
-  }).default({ contactSheets: { samples: 12, columns: 4, frameWidth: 480 } }),
+    cutDetection: z.object({
+      threshold: z.number().min(0.01).max(1).default(0.18),
+      minimumGap: durationSchema.default("1s"),
+      maximumCandidates: z.number().int().min(1).max(100).default(20),
+    }).default({ threshold: 0.18, minimumGap: "1s", maximumCandidates: 20 }),
+  }).default({
+    contactSheets: { samples: 12, columns: 4, frameWidth: 480 },
+    cutDetection: { threshold: 0.18, minimumGap: "1s", maximumCandidates: 20 },
+  }),
   audio: z.object({
     narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),
     loudness: z.object({

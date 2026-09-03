@@ -25,6 +25,14 @@ export interface SourceAnalysisReport {
   project: string;
   generatedAt: string;
   contactSheets: ContactSheetPlan[];
+  cutCandidates: CutCandidate[];
+}
+
+export interface CutCandidate {
+  sceneId: string;
+  source: string;
+  sourceTimeMilliseconds: number;
+  confidence: number;
 }
 
 function evenlySpacedTimes(start: number, end: number, count: number): number[] {
@@ -117,6 +125,73 @@ async function renderContactSheet(project: LoadedProject, plan: ContactSheetPlan
     .toFile(plan.outputPath);
 }
 
+export function parseCutCandidates(
+  stderr: string,
+  sceneId: string,
+  source: string,
+  sourceStartMilliseconds: number,
+  minimumConfidence: number,
+  minimumGapMilliseconds: number,
+  maximumCandidates: number,
+): CutCandidate[] {
+  const detected = [...stderr.matchAll(/pts_time:([0-9.]+)[\s\S]*?lavfi\.scd\.score=([0-9.]+)/g)]
+    .map((match): CutCandidate => ({
+      sceneId,
+      source,
+      sourceTimeMilliseconds: sourceStartMilliseconds + Math.round(Number(match[1]) * 1_000),
+      confidence: Number((Number(match[2]) / 100).toFixed(4)),
+    }))
+    .filter((candidate) => (
+      Number.isFinite(candidate.sourceTimeMilliseconds)
+      && Number.isFinite(candidate.confidence)
+      && candidate.confidence >= minimumConfidence
+    ));
+
+  const deduplicated: CutCandidate[] = [];
+  for (const candidate of detected.sort((a, b) => a.sourceTimeMilliseconds - b.sourceTimeMilliseconds)) {
+    const previous = deduplicated.at(-1);
+    if (previous && candidate.sourceTimeMilliseconds - previous.sourceTimeMilliseconds < minimumGapMilliseconds) {
+      if (candidate.confidence > previous.confidence) deduplicated[deduplicated.length - 1] = candidate;
+      continue;
+    }
+    deduplicated.push(candidate);
+  }
+
+  return deduplicated
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, maximumCandidates)
+    .sort((a, b) => a.sourceTimeMilliseconds - b.sourceTimeMilliseconds);
+}
+
+async function detectCuts(project: LoadedProject, plan: ContactSheetPlan): Promise<CutCandidate[]> {
+  const config = project.manifest.inspection?.cutDetection ?? {
+    threshold: 0.18,
+    minimumGap: "1s",
+    maximumCandidates: 20,
+  };
+  const sourcePath = resolveProjectPath(project, plan.source);
+  const durationMilliseconds = plan.sourceEndMilliseconds - plan.sourceStartMilliseconds;
+  const { stderr } = await runProcess("ffmpeg", [
+    "-v", "info",
+    "-ss", (plan.sourceStartMilliseconds / 1_000).toFixed(3),
+    "-t", (durationMilliseconds / 1_000).toFixed(3),
+    "-i", sourcePath,
+    "-vf", `fps=10,scale=320:-2,scdet=threshold=${config.threshold * 100},metadata=print`,
+    "-an",
+    "-f", "null",
+    "-",
+  ]);
+  return parseCutCandidates(
+    stderr,
+    plan.sceneId,
+    plan.source,
+    plan.sourceStartMilliseconds,
+    config.threshold,
+    parseDuration(config.minimumGap),
+    config.maximumCandidates,
+  );
+}
+
 function markdownReport(report: SourceAnalysisReport): string {
   const lines = [
     `# IntentCut Source Analysis — ${report.project}`,
@@ -135,6 +210,16 @@ function markdownReport(report: SourceAnalysisReport): string {
     lines.push(`- Artifact: \`${path.relative(path.dirname(path.dirname(sheet.outputPath)), sheet.outputPath)}\``);
     lines.push("");
   }
+  lines.push("## Likely cut regions", "");
+  if (report.cutCandidates.length === 0) {
+    lines.push("No visual discontinuities exceeded the configured threshold.", "");
+  } else {
+    lines.push("| Scene | Source time | Confidence |", "| --- | ---: | ---: |");
+    for (const candidate of report.cutCandidates) {
+      lines.push(`| ${candidate.sceneId} | ${formatDuration(candidate.sourceTimeMilliseconds)} | ${candidate.confidence.toFixed(4)} |`);
+    }
+    lines.push("");
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -145,10 +230,12 @@ export async function analyzeSources(
 ): Promise<SourceAnalysisReport> {
   const contactSheets = createContactSheetPlans(project, timeline, inspections);
   await Promise.all(contactSheets.map((plan) => renderContactSheet(project, plan)));
+  const cutCandidates = (await Promise.all(contactSheets.map((plan) => detectCuts(project, plan)))).flat();
   const report: SourceAnalysisReport = {
     project: project.manifest.project.title,
     generatedAt: new Date().toISOString(),
     contactSheets,
+    cutCandidates,
   };
   const reportDirectory = resolveProjectPath(project, project.manifest.output.reportDirectory);
   await mkdir(reportDirectory, { recursive: true });
@@ -164,6 +251,10 @@ export function formatSourceAnalysis(report: SourceAnalysisReport): string {
   for (const sheet of report.contactSheets) {
     lines.push(`PASS  ${sheet.sceneId.padEnd(22)} ${sheet.sampleTimesMilliseconds.length} frames · ${sheet.columns}x${sheet.rows}`);
     lines.push(`      ${sheet.outputPath}`);
+  }
+  lines.push(`PASS  ${"Likely cuts".padEnd(22)} ${report.cutCandidates.length} bounded candidate(s)`);
+  for (const candidate of report.cutCandidates) {
+    lines.push(`      ${candidate.sceneId} · ${formatDuration(candidate.sourceTimeMilliseconds)} · confidence ${candidate.confidence.toFixed(4)}`);
   }
   lines.push("", `Result: ${report.contactSheets.length > 0 ? "PASS" : "NO VIDEO SCENES"}`);
   return lines.join("\n");
