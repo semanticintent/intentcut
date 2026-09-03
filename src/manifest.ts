@@ -153,6 +153,11 @@ export const projectManifestSchema = z.object({
       endState: z.string().min(1),
       privacyNotes: z.array(z.string().min(1)).default([]),
     })).default([]),
+    obs: z.object({
+      enabled: z.boolean().default(false),
+      url: z.string().regex(/^wss?:\/\//, "OBS URL must use ws:// or wss://.").default("ws://127.0.0.1:4455"),
+      passwordEnvironmentVariable: z.string().regex(/^[A-Z_][A-Z0-9_]*$/).optional(),
+    }).strict().optional(),
   }).optional(),
   audio: z.object({
     narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),

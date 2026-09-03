@@ -92,4 +92,14 @@ output: { file: renders/preview.mp4, codec: h264 }
       },
     })).toThrow("must reference a video scene");
   });
+
+  it("rejects inline OBS passwords", () => {
+    expect(() => projectManifestSchema.parse({
+      ...base,
+      capture: {
+        takes: [],
+        obs: { enabled: true, url: "ws://127.0.0.1:4455", password: "never-store-this" },
+      },
+    })).toThrow("Unrecognized key");
+  });
 });

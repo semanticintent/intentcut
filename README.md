@@ -151,6 +151,24 @@ FFmpeg, ffprobe, an OBS installation, and whether an OBS configuration directory
 exists. It does not open OBS, inspect configuration contents, read WebSocket
 credentials, attempt a connection, or control recording.
 
+The opt-in OBS adapter contract is available through the TypeScript API. OBS
+must be enabled explicitly, and an optional password is referenced by
+environment-variable name—never stored in the manifest:
+
+```yaml
+capture:
+  obs:
+    enabled: true
+    url: ws://127.0.0.1:4455
+    passwordEnvironmentVariable: INTENTCUT_OBS_PASSWORD
+```
+
+The adapter accepts a replaceable transport, allowing its authority and
+lifecycle rules to be tested without connecting to OBS. It permits only
+declared takes, refuses to adopt an external recording, refuses to close during
+an active take, and returns a `captured-uningested` receipt after stopping.
+A production WebSocket transport and ingestion command remain future work.
+
 Create a narration-ready production workspace with:
 
 ```bash

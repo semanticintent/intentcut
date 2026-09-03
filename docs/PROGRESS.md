@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 6 — capture workflow
-**Status:** In progress · manual contract and safe environment discovery complete
+**Status:** In progress · OBS adapter contract complete; live transport remains
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -258,7 +258,13 @@ proposal stable across repeated runs against unchanged evidence.
 - [x] Detect OBS configuration-directory presence without reading its contents.
 - [x] Report FFmpeg and ffprobe versions beside the project capture target.
 - [x] Preserve diagnostic-only authority with no connection or credential access.
-- [ ] Add an opt-in OBS adapter for named recording takes.
+- [x] Add an opt-in OBS adapter contract for named recording takes.
+- [x] Require explicit manifest enablement before connecting.
+- [x] Resolve optional OBS passwords only through a named environment variable.
+- [x] Refuse undeclared takes and recordings started outside IntentCut.
+- [x] Preserve an active-take lifecycle through stop and close operations.
+- [x] Return captured media as an uningested receipt.
+- [ ] Implement and verify the production OBS WebSocket transport.
 - [ ] Ingest completed takes without overwriting existing media.
 
 ## Milestone 6A verified result
@@ -296,6 +302,25 @@ OBS adapter         not ready
 
 The result is informational rather than failing because native manual capture
 remains usable. The automated suite contains 28 tests across ten files.
+
+## Milestone 6C verified result
+
+The first OBS adapter is a transport-independent TypeScript boundary, verified
+against a fake transport because OBS is not installed on the current machine.
+The tests prove these behaviors without making a network connection:
+
+```text
+Disabled adapter             connection refused before transport
+Missing password variable    connection refused before transport
+Undeclared take              start refused before OBS request
+External recording active    start refused without adopting it
+Active IntentCut take        close refused until stop
+Completed take               captured-uningested receipt returned
+Inline manifest password     schema rejected
+```
+
+The automated suite contains 34 tests across eleven files. A real WebSocket
+transport is deliberately separate from this authority contract.
 
 ## Decision log
 
@@ -430,3 +455,21 @@ control. The generated record states each of those boundaries explicitly.
 IntentCut distinguishes readiness for its manual capture practice from
 readiness for an optional OBS adapter. A missing OBS installation does not make
 the capture brief or native screen recording workflow invalid.
+
+### 2026-09-03 — Transport-independent capture authority
+
+The OBS adapter owns take authorization and lifecycle rules but depends on a
+replaceable transport. This makes it possible to prove what may connect, start,
+stop, and close without requiring OBS or a live recording session.
+
+### 2026-09-03 — Secrets stay outside the manifest
+
+OBS authentication may name an environment variable. Inline password fields
+are rejected by the strict schema, and a missing named variable blocks the
+connection before the transport is called.
+
+### 2026-09-03 — Capture is not ingestion
+
+Stopping a declared OBS take returns the actual OBS output path alongside the
+expected IntentCut source path in a `captured-uningested` receipt. Moving or
+overwriting source media requires a later, separate ingestion decision.

@@ -1,6 +1,7 @@
 export { formatDuration, parseDuration } from "./duration.js";
 export { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./brief.js";
 export { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
+export { ObsCaptureAdapter } from "./obs.js";
 export { createFirstCutProposal, formatFirstCutProposal, writeFirstCutProposal } from "./first-cut.js";
 export { analyzeAudio, analyzeSources, createContactSheetPlans, formatSourceAnalysis, parseCutCandidates, parseSilenceRegions, parseWebVtt } from "./analyze.js";
 export { checkBuild, formatBuildReport } from "./check.js";
@@ -15,6 +16,7 @@ export { initializeProject } from "./scaffold.js";
 export type { BuildReport, CheckResult } from "./check.js";
 export type { CaptureBrief, CaptureTake } from "./brief.js";
 export type { CaptureEnvironmentStatus, CaptureProbeFacts } from "./capture-status.js";
+export type { ObsAdapterStatus, ObsConnectionOptions, ObsRecordingReceipt, ObsRequestResult, ObsTransport } from "./obs.js";
 export type { AudioAnalysis, ContactSheetPlan, CutCandidate, SilenceRegion, SourceAnalysisReport, TranscriptAnalysis, TranscriptCue } from "./analyze.js";
 export type { FirstCutProposal, FirstCutReviewAction, FirstCutSceneProposal, FirstCutSegment } from "./first-cut.js";
 export type { CaptionCue, CaptionPlan } from "./captions.js";
