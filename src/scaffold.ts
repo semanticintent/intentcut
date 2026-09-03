@@ -11,6 +11,12 @@ project:
   fps: 30
   maximumDuration: 3m
 
+inspection:
+  contactSheets:
+    samples: 12
+    columns: 4
+    frameWidth: 480
+
 scenes:
   - id: opening
     type: image
@@ -53,9 +59,10 @@ const readme = `# IntentCut production
 
 1. Add \`assets/opening.png\` and \`assets/closing.png\`.
 2. Edit the scene timing and narration scripts.
-3. Run \`intentcut narrate intentcut.yaml --temporary\`.
-4. Run \`intentcut render intentcut.yaml --preview\`.
-5. Replace prototype sections with final human narration before a final render.
+3. Run \`intentcut analyze intentcut.yaml\` after adding recordings.
+4. Run \`intentcut narrate intentcut.yaml --temporary\`.
+5. Run \`intentcut render intentcut.yaml --preview\`.
+6. Replace prototype sections with final human narration before a final render.
 `;
 
 export async function initializeProject(directory: string): Promise<string> {

@@ -108,6 +108,13 @@ export const projectManifestSchema = z.object({
   }),
   scenes: z.array(z.discriminatedUnion("type", [imageSceneSchema, videoSceneSchema])).min(1),
   annotations: z.array(annotationSchema).default([]),
+  inspection: z.object({
+    contactSheets: z.object({
+      samples: z.number().int().min(4).max(36).default(12),
+      columns: z.number().int().min(2).max(6).default(4),
+      frameWidth: z.number().int().min(240).max(960).default(480),
+    }).default({ samples: 12, columns: 4, frameWidth: 480 }),
+  }).default({ contactSheets: { samples: 12, columns: 4, frameWidth: 480 } }),
   audio: z.object({
     narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),
     loudness: z.object({

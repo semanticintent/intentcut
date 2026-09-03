@@ -1,4 +1,5 @@
 export { formatDuration, parseDuration } from "./duration.js";
+export { analyzeSources, createContactSheetPlans, formatSourceAnalysis } from "./analyze.js";
 export { checkBuild, formatBuildReport } from "./check.js";
 export { createCaptionPlan, writeCaptions } from "./captions.js";
 export { inspectMedia, inspectProjectMedia } from "./inspect.js";
@@ -9,6 +10,7 @@ export { compileTimeline } from "./timeline.js";
 export { createRenderPlan, renderPreview } from "./render.js";
 export { initializeProject } from "./scaffold.js";
 export type { BuildReport, CheckResult } from "./check.js";
+export type { ContactSheetPlan, SourceAnalysisReport } from "./analyze.js";
 export type { CaptionCue, CaptionPlan } from "./captions.js";
 export type { MediaInspection } from "./inspect.js";
 export type { LoadedProject, ProjectManifest, ProjectScene } from "./manifest.js";

@@ -9,6 +9,7 @@ import { compileTimeline } from "./timeline.js";
 import { createRenderPlan, renderPreview } from "./render.js";
 import { initializeProject } from "./scaffold.js";
 import { createCaptionPlan, writeCaptions } from "./captions.js";
+import { analyzeSources, formatSourceAnalysis } from "./analyze.js";
 
 function usage(): string {
   return [
@@ -18,6 +19,7 @@ function usage(): string {
     "  intentcut init <directory>",
     "  intentcut validate <manifest>",
     "  intentcut inspect <manifest>",
+    "  intentcut analyze <manifest>",
     "  intentcut plan <manifest>",
     "  intentcut render <manifest> --preview",
     "  intentcut render <manifest> --final",
@@ -30,7 +32,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "inspect", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -79,6 +81,12 @@ async function main(): Promise<void> {
   }
 
   const timeline = compileTimeline(project, inspections);
+
+  if (command === "analyze") {
+    const report = await analyzeSources(project, timeline, inspections);
+    console.log(formatSourceAnalysis(report));
+    return;
+  }
 
   const narration = project.manifest.audio?.narration;
   let narrationPlan;

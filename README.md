@@ -29,6 +29,7 @@ production assets.
 npm install
 npm run dev -- validate examples/orbweaver/intentcut.yaml
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
+npm run dev -- analyze examples/orbweaver/intentcut.yaml
 npm run dev -- plan examples/orbweaver/intentcut.yaml
 npm run dev -- render examples/orbweaver/intentcut.yaml --preview
 npm run dev -- check examples/orbweaver/intentcut.yaml
@@ -64,6 +65,20 @@ output:
 Camera moves are bounded to their scene and annotations are rendered as
 designed image overlays, so they do not depend on optional FFmpeg text filters.
 Sectioned narration can also compile into a portable WebVTT sidecar.
+
+Source analysis produces deterministic, timecoded contact sheets without
+changing the manifest or timeline. Sampling is configurable in the manifest:
+
+```yaml
+inspection:
+  contactSheets:
+    samples: 12
+    columns: 4
+    frameWidth: 480
+```
+
+The generated JPEG plus JSON and Markdown reports remain review artifacts under
+the configured report directory.
 
 Create a narration-ready production workspace with:
 

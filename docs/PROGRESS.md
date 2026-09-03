@@ -4,8 +4,8 @@ Last updated: 2026-09-03
 
 ## Current position
 
-**Phase:** Milestone 4 — semantic visual grammar
-**Status:** Complete
+**Phase:** Milestone 5 — assisted source inspection
+**Status:** In progress · contact sheets complete
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -154,10 +154,34 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 ## Later milestones
 
 - [x] Designed annotations, captions, and camera movement.
-- [ ] Contact sheets, transcription, and assisted cut detection.
+- [~] Contact sheets, transcription, and assisted cut detection.
 - [ ] OBS capture adapter.
 - [ ] Bounded agent interface.
 - [ ] Explicit human approval and release workflow.
+
+## Milestone 5 — Assisted source inspection
+
+- [x] Add a non-mutating `analyze` command.
+- [x] Sample each declared recording range at deterministic midpoints.
+- [x] Render branded, timecoded contact sheets.
+- [x] Produce machine-readable and human-readable source-analysis reports.
+- [x] Verify both real Orbweaver recordings visually.
+- [ ] Detect silence and likely cut regions.
+- [ ] Attach transcription metadata through a provider-neutral adapter.
+- [ ] Generate an editable first-cut proposal without applying it.
+
+## Milestone 5A verified result
+
+IntentCut sampled both source recordings in the Orbweaver reference manifest
+and produced two 4×3 contact sheets with 12 source-timecoded frames each. Visual
+inspection confirmed that the sheets expose the full interaction arc and make
+long waiting intervals apparent without requiring timeline scrubbing.
+
+```text
+create-proposal        12 frames · 4x3 · PASS
+revise-and-undo        12 frames · 4x3 · PASS
+Automated suite        16 tests across 7 files · PASS
+```
 
 ## Decision log
 
@@ -220,3 +244,15 @@ and tone while IntentCut owns their visual rendering.
 Sectioned narration is the caption source. IntentCut derives WebVTT cue timing
 from the same resolved narration plan used by the audio mix, preventing a
 second hand-maintained timing track.
+
+### 2026-09-03 — Inspection does not edit
+
+Source analysis writes derived contact sheets and reports only. It does not
+change trims, scene order, speed, or any other editorial source. Future cut and
+transcription findings will follow the same proposal-before-mutation boundary.
+
+### 2026-09-03 — Midpoint sampling
+
+Contact-sheet frames are sampled at the midpoint of equal intervals inside the
+declared source range. This avoids overrepresenting exact trim boundaries and
+makes every generated sheet deterministic for a given manifest and recording.
