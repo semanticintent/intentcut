@@ -33,6 +33,7 @@ production assets.
 npm install
 npm run dev -- validate examples/orbweaver/intentcut.yaml
 npm run dev -- brief examples/orbweaver/intentcut.yaml
+npm run dev -- capture-status examples/orbweaver/intentcut.yaml
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
 npm run dev -- plan examples/orbweaver/intentcut.yaml
@@ -144,6 +145,11 @@ capture:
 
 `intentcut brief` compiles this into JSON and a printable Markdown checklist.
 It does not require the recordings to exist and grants no recording control.
+
+`intentcut capture-status` performs a read-only environment check. It detects
+FFmpeg, ffprobe, an OBS installation, and whether an OBS configuration directory
+exists. It does not open OBS, inspect configuration contents, read WebSocket
+credentials, attempt a connection, or control recording.
 
 Create a narration-ready production workspace with:
 

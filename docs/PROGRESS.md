@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 6 — capture workflow
-**Status:** In progress · manual capture contract complete
+**Status:** In progress · manual contract and safe environment discovery complete
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -254,7 +254,10 @@ proposal stable across repeated runs against unchanged evidence.
 - [x] Produce JSON and printable Markdown artifacts.
 - [x] Preserve manual recording authority.
 - [x] Reconstruct the real Orbweaver capture process as the proving case.
-- [ ] Detect and report OBS availability.
+- [x] Detect and report OBS availability.
+- [x] Detect OBS configuration-directory presence without reading its contents.
+- [x] Report FFmpeg and ffprobe versions beside the project capture target.
+- [x] Preserve diagnostic-only authority with no connection or credential access.
 - [ ] Add an opt-in OBS adapter for named recording takes.
 - [ ] Ingest completed takes without overwriting existing media.
 
@@ -275,6 +278,24 @@ Recording authority    manual
 The brief can be compiled before either recording exists because it does not
 invoke media inspection. The automated suite contains 26 tests across nine
 files.
+
+## Milestone 6B verified result
+
+`intentcut capture-status` now produces JSON and Markdown environment reports
+without opening or connecting to capture software. On the current macOS
+workstation it reports:
+
+```text
+FFmpeg             8.1.2 · available
+ffprobe            8.1.2 · available
+OBS                 not found
+OBS configuration  not detected
+Manual capture      ready
+OBS adapter         not ready
+```
+
+The result is informational rather than failing because native manual capture
+remains usable. The automated suite contains 28 tests across ten files.
 
 ## Decision log
 
@@ -396,3 +417,16 @@ brief is `brief-only`, and its recording control is explicitly `manual`.
 The `brief` command loads and validates project intent but does not inspect
 source files. A creator can therefore prepare and rehearse a production before
 the declared recordings exist.
+
+### 2026-09-03 — Discovery is not connection
+
+Capture-status discovery may inspect executable and directory presence plus
+safe version metadata. It does not open OBS, read configuration contents,
+retrieve WebSocket credentials, attempt a connection, or gain recording
+control. The generated record states each of those boundaries explicitly.
+
+### 2026-09-03 — OBS absence is informational
+
+IntentCut distinguishes readiness for its manual capture practice from
+readiness for an optional OBS adapter. A missing OBS installation does not make
+the capture brief or native screen recording workflow invalid.

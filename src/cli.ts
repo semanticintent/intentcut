@@ -12,6 +12,7 @@ import { createCaptionPlan, writeCaptions } from "./captions.js";
 import { analyzeSources, formatSourceAnalysis } from "./analyze.js";
 import { createFirstCutProposal, formatFirstCutProposal, writeFirstCutProposal } from "./first-cut.js";
 import { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./brief.js";
+import { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
 
 function usage(): string {
   return [
@@ -21,6 +22,7 @@ function usage(): string {
     "  intentcut init <directory>",
     "  intentcut validate <manifest>",
     "  intentcut brief <manifest>",
+    "  intentcut capture-status <manifest>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
     "  intentcut plan <manifest>",
@@ -35,7 +37,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "brief", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -68,6 +70,14 @@ async function main(): Promise<void> {
     const brief = createCaptureBrief(project);
     const output = await writeCaptureBrief(project, brief);
     console.log(formatCaptureBrief(brief));
+    console.log(`      ${output.markdown}`);
+    return;
+  }
+
+  if (command === "capture-status") {
+    const status = buildCaptureStatus(project, await detectCaptureProbeFacts());
+    const output = await writeCaptureStatus(project, status);
+    console.log(formatCaptureStatus(status));
     console.log(`      ${output.markdown}`);
     return;
   }
