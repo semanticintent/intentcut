@@ -76,4 +76,20 @@ output: { file: renders/preview.mp4, codec: h264 }
       },
     })).toThrow("unknown scene");
   });
+
+  it("rejects capture takes attached to non-video scenes", () => {
+    expect(() => projectManifestSchema.parse({
+      ...base,
+      capture: {
+        takes: [{
+          scene: "opening",
+          objective: "Capture it.",
+          startState: "Ready.",
+          actions: ["Act."],
+          visibleProof: ["Visible."],
+          endState: "Done.",
+        }],
+      },
+    })).toThrow("must reference a video scene");
+  });
 });

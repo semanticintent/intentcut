@@ -137,6 +137,23 @@ export const projectManifestSchema = z.object({
     silenceDetection: { thresholdDb: -35, minimumDuration: "500ms" },
     transcripts: [],
   }),
+  capture: z.object({
+    preflight: z.array(z.string().min(1)).default([
+      "Hide notifications and unrelated applications.",
+      "Confirm the intended account and sample data are visible.",
+      "Verify browser zoom and window placement.",
+      "Perform one rehearsal before recording.",
+    ]),
+    takes: z.array(z.object({
+      scene: z.string().min(1),
+      objective: z.string().min(1),
+      startState: z.string().min(1),
+      actions: z.array(z.string().min(1)).min(1),
+      visibleProof: z.array(z.string().min(1)).min(1),
+      endState: z.string().min(1),
+      privacyNotes: z.array(z.string().min(1)).default([]),
+    })).default([]),
+  }).optional(),
   audio: z.object({
     narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),
     loudness: z.object({
@@ -200,6 +217,15 @@ export const projectManifestSchema = z.object({
         message: `Transcript references unknown scene "${transcript.scene}".`,
         path: ["inspection", "transcripts", index, "scene"],
       });
+    }
+  });
+
+  manifest.capture?.takes.forEach((take, index) => {
+    const scene = manifest.scenes.find((candidate) => candidate.id === take.scene);
+    if (!scene) {
+      context.addIssue({ code: "custom", message: `Capture take references unknown scene "${take.scene}".`, path: ["capture", "takes", index, "scene"] });
+    } else if (scene.type !== "video") {
+      context.addIssue({ code: "custom", message: `Capture take must reference a video scene, not "${scene.type}".`, path: ["capture", "takes", index, "scene"] });
     }
   });
 });

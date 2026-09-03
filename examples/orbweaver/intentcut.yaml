@@ -8,6 +8,46 @@ project:
   fps: 30
   maximumDuration: 3m
 
+capture:
+  preflight:
+    - Hide the Dock, notifications, desktop icons, and unrelated applications.
+    - Open ChatGPT on the left and the Orbweaver playground on the right.
+    - Confirm the playground is empty at revision 0 and all six WebMCP tools are ready.
+    - Set browser and ChatGPT zoom so both surfaces remain readable at full-screen capture.
+    - Keep the prepared prompts available without exposing notes in the recording.
+  takes:
+    - scene: create-proposal
+      objective: Show ChatGPT creating a validated semantic proposal through Orbweaver's WebMCP tools.
+      startState: ChatGPT is ready on the left; Orbweaver is empty at revision 0 on the right.
+      actions:
+        - Ask ChatGPT to read the workspace and proposal contract.
+        - Ask it to create the five-entity order-fulfillment proposal.
+        - Allow the tool interaction to complete without navigating away from the shared workspace.
+      visibleProof:
+        - The workspace advances from revision 0 to revision 1.
+        - The semantic diagram renders all five requested entities and relationships.
+        - The result is visibly marked as a validated, untrusted preview.
+        - Human acceptance remains available but is not invoked.
+      endState: Hold on revision 1 with the complete diagram and trust state visible.
+      privacyNotes:
+        - Use only public Orbweaver sample data and the challenge prompt.
+    - scene: revise-and-undo
+      objective: Show a bounded agent revision, semantic inspection, and human-controlled reversal.
+      startState: Revision 1 is visible and remains unaccepted.
+      actions:
+        - Ask ChatGPT to add Delivery tracking after Prepare shipment.
+        - Ask it to replace the final relationship with the two requested relationships.
+        - Focus Delivery tracking and open its semantic inspector.
+        - Manually invoke Undo agent change.
+      visibleProof:
+        - Revision 2 contains Delivery tracking and the revised relationships.
+        - Delivery tracking is focused with its identity and neighbors visible.
+        - The preview remains validated but unaccepted.
+        - Manual undo restores the prior five-entity graph as revision 3.
+      endState: Hold on the restored graph with the undo result visible.
+      privacyNotes:
+        - Do not accept or export any agent-authored revision during the take.
+
 scenes:
   - id: opening
     type: image

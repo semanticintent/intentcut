@@ -11,6 +11,7 @@ import { initializeProject } from "./scaffold.js";
 import { createCaptionPlan, writeCaptions } from "./captions.js";
 import { analyzeSources, formatSourceAnalysis } from "./analyze.js";
 import { createFirstCutProposal, formatFirstCutProposal, writeFirstCutProposal } from "./first-cut.js";
+import { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./brief.js";
 
 function usage(): string {
   return [
@@ -19,6 +20,7 @@ function usage(): string {
     "Usage:",
     "  intentcut init <directory>",
     "  intentcut validate <manifest>",
+    "  intentcut brief <manifest>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
     "  intentcut plan <manifest>",
@@ -33,7 +35,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -59,6 +61,14 @@ async function main(): Promise<void> {
   if (command === "validate") {
     console.log(`PASS  ${project.manifest.project.title}`);
     console.log(`      ${project.manifest.scenes.length} scenes · manifest version ${project.manifest.version}`);
+    return;
+  }
+
+  if (command === "brief") {
+    const brief = createCaptureBrief(project);
+    const output = await writeCaptureBrief(project, brief);
+    console.log(formatCaptureBrief(brief));
+    console.log(`      ${output.markdown}`);
     return;
   }
 

@@ -4,8 +4,8 @@ Last updated: 2026-09-03
 
 ## Current position
 
-**Phase:** Milestone 5 — assisted source inspection
-**Status:** Complete
+**Phase:** Milestone 6 — capture workflow
+**Status:** In progress · manual capture contract complete
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -155,7 +155,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 
 - [x] Designed annotations, captions, and camera movement.
 - [x] Contact sheets, transcription, and assisted cut detection.
-- [ ] OBS capture adapter.
+- [~] Capture workflow and optional OBS adapter.
 - [ ] Bounded agent interface.
 - [ ] Explicit human approval and release workflow.
 
@@ -244,6 +244,37 @@ Automated suite      23 tests across 8 files · PASS
 Proposal timecodes use the same readable `HH:MM:SS.mmm` form as the rest of the
 production language. Analysis timestamps are deliberately excluded, making the
 proposal stable across repeated runs against unchanged evidence.
+
+## Milestone 6 — Capture workflow
+
+- [x] Define declarative preflight and recording-take intent.
+- [x] Compile capture briefs before source recordings exist.
+- [x] Include objective, start state, ordered actions, visible proof, and end state.
+- [x] Carry explicit privacy checks into each take.
+- [x] Produce JSON and printable Markdown artifacts.
+- [x] Preserve manual recording authority.
+- [x] Reconstruct the real Orbweaver capture process as the proving case.
+- [ ] Detect and report OBS availability.
+- [ ] Add an opt-in OBS adapter for named recording takes.
+- [ ] Ingest completed takes without overwriting existing media.
+
+## Milestone 6A verified result
+
+The Orbweaver manifest now preserves the capture procedure that previously
+existed only in our working conversation. `intentcut brief` produces a
+1920×1080, 30 fps recording guide containing:
+
+```text
+Preflight checks       5 pending
+Manual takes           2
+Ordered actions        7
+Visible-proof checks   8
+Recording authority    manual
+```
+
+The brief can be compiled before either recording exists because it does not
+invoke media inspection. The automated suite contains 26 tests across nine
+files.
 
 ## Decision log
 
@@ -353,3 +384,15 @@ milestone.
 First-cut proposals contain readable source timecodes but omit volatile run
 timestamps. The same analysis evidence therefore produces the same reviewable
 proposal and a meaningful version-control diff.
+
+### 2026-09-03 — Capture begins as a contract
+
+IntentCut first makes the human performance repeatable: preflight, start state,
+actions, visible evidence, end state, filename, and privacy checks. The capture
+brief is `brief-only`, and its recording control is explicitly `manual`.
+
+### 2026-09-03 — Brief before media
+
+The `brief` command loads and validates project intent but does not inspect
+source files. A creator can therefore prepare and rehearse a production before
+the declared recordings exist.

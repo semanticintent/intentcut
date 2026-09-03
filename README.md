@@ -20,6 +20,8 @@ rendered artifact with JSON and Markdown reports. Its visual grammar now
 includes timed annotations, portable WebVTT captions, and bounded camera moves.
 Source analysis produces contact sheets, visual and silence signals, transcript
 metadata, and an editable first-cut proposal without modifying the production.
+Capture briefs can be generated before recordings exist, preserving the human
+performance as a precise, repeatable production step.
 
 The first proving experiment successfully reconstructed the completed
 Orbweaver WebMCP Challenge sequence from a declarative manifest and its existing
@@ -30,6 +32,7 @@ production assets.
 ```bash
 npm install
 npm run dev -- validate examples/orbweaver/intentcut.yaml
+npm run dev -- brief examples/orbweaver/intentcut.yaml
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
 npm run dev -- plan examples/orbweaver/intentcut.yaml
@@ -117,6 +120,30 @@ authority:
 ```
 
 IntentCut currently provides no command that applies this proposal.
+
+Declare the human capture intent beside the scenes it serves:
+
+```yaml
+capture:
+  preflight:
+    - Hide notifications and unrelated applications.
+    - Confirm the intended sample data is visible.
+  takes:
+    - scene: workspace
+      objective: Show the validated proposal appearing.
+      startState: The workspace is empty at revision 0.
+      actions:
+        - Ask the agent to create the proposal.
+      visibleProof:
+        - The complete diagram appears.
+        - The preview is visibly unaccepted.
+      endState: Hold on the result before stopping.
+      privacyNotes:
+        - Use public sample data only.
+```
+
+`intentcut brief` compiles this into JSON and a printable Markdown checklist.
+It does not require the recordings to exist and grants no recording control.
 
 Create a narration-ready production workspace with:
 
