@@ -27,10 +27,11 @@ export function parseDuration(value: string): number {
 }
 
 export function formatDuration(milliseconds: number): string {
-  const totalMilliseconds = Math.round(milliseconds);
+  const sign = milliseconds < 0 ? "-" : "";
+  const totalMilliseconds = Math.abs(Math.round(milliseconds));
   const minutes = Math.floor(totalMilliseconds / 60_000);
   const seconds = Math.floor((totalMilliseconds % 60_000) / 1_000);
   const remainder = totalMilliseconds % 1_000;
 
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(remainder).padStart(3, "0")}`;
+  return `${sign}${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(remainder).padStart(3, "0")}`;
 }

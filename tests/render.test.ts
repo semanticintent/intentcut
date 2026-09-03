@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LoadedProject } from "../src/manifest.js";
 import { createRenderPlan } from "../src/render.js";
+import type { NarrationPlan } from "../src/narration.js";
 import type { TimelinePlan } from "../src/timeline.js";
 
 const project: LoadedProject = {
@@ -81,5 +82,55 @@ describe("render planning", () => {
     expect(filterGraph).toContain("setpts=(PTS-STARTPTS)/2");
     expect(filterGraph).toContain("concat=n=2:v=1:a=0");
     expect(filterGraph).toContain("loudnorm=I=-16:TP=-1.5:LRA=7");
+  });
+
+  it("positions independent narration sections on the shared timeline", () => {
+    const sectioned = structuredClone(project);
+    sectioned.manifest.audio = {
+      narration: {
+        generatedDirectory: "narration/generated",
+        sections: [
+          { id: "first", scene: "opening", script: "first.md", offset: "0s", mode: "synthetic-prototype" },
+          { id: "second", scene: "demo", script: "second.md", offset: "1s", mode: "human-final", source: "second.wav" },
+        ],
+      },
+      loudness: { integrated: -16, truePeak: -1.5, range: 7 },
+    };
+    const narrationPlan: NarrationPlan = {
+      syntheticCount: 1,
+      humanCount: 1,
+      allFit: true,
+      sections: [
+        {
+          id: "first",
+          scene: "opening",
+          mode: "synthetic-prototype",
+          scriptPath: "/work/demo/first.md",
+          audioPath: "/work/demo/narration/generated/first.aiff",
+          startMilliseconds: 0,
+          capacityMilliseconds: 5_000,
+          durationMilliseconds: 3_000,
+          fits: true,
+        },
+        {
+          id: "second",
+          scene: "demo",
+          mode: "human-final",
+          scriptPath: "/work/demo/second.md",
+          audioPath: "/work/demo/second.wav",
+          startMilliseconds: 6_000,
+          capacityMilliseconds: 9_000,
+          durationMilliseconds: 4_000,
+          fits: true,
+        },
+      ],
+    };
+
+    const plan = createRenderPlan(sectioned, timeline, narrationPlan);
+    const filterGraph = plan.arguments[plan.arguments.indexOf("-filter_complex") + 1];
+    expect(plan.syntheticNarrationSections).toBe(1);
+    expect(filterGraph).toContain("adelay=0:all=1[na0]");
+    expect(filterGraph).toContain("adelay=6000:all=1[na1]");
+    expect(filterGraph).toContain("amix=inputs=2:duration=longest:normalize=0");
   });
 });

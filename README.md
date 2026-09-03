@@ -33,6 +33,27 @@ npm run dev -- render examples/orbweaver/intentcut.yaml --preview
 npm run dev -- check examples/orbweaver/intentcut.yaml
 ```
 
+Create a narration-ready production workspace with:
+
+```bash
+npm run dev -- init ../my-project-video
+```
+
+Generate local temporary narration, inspect its timing, and render a prototype:
+
+```bash
+npm run dev -- narrate examples/narration-demo/intentcut.yaml --temporary
+npm run dev -- render examples/narration-demo/intentcut.yaml --preview
+```
+
+Temporary narration is valid for previews. A final render is structurally
+blocked until every section is explicitly replaced with human-final audio:
+
+```bash
+npm run dev -- replace-voice intentcut.yaml opening narration/human/01-opening.wav
+npm run dev -- render intentcut.yaml --final
+```
+
 Run all compiler and test checks with:
 
 ```bash

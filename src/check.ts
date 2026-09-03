@@ -6,6 +6,7 @@ import type { LoadedProject } from "./manifest.js";
 import { resolveProjectPath } from "./manifest.js";
 import { runProcess } from "./process.js";
 import type { TimelinePlan } from "./timeline.js";
+import type { NarrationPlan } from "./narration.js";
 
 export interface CheckResult {
   name: string;
@@ -66,7 +67,12 @@ function markdownReport(report: BuildReport): string {
   return lines.join("\n");
 }
 
-export async function checkBuild(project: LoadedProject, timeline: TimelinePlan): Promise<BuildReport> {
+export async function checkBuild(
+  project: LoadedProject,
+  timeline: TimelinePlan,
+  narrationPlan?: NarrationPlan,
+  final = false,
+): Promise<BuildReport> {
   const outputPath = resolveProjectPath(project, project.manifest.output.file);
   const inspection = await inspectMedia(project.manifest.output.file, outputPath);
   const checks: CheckResult[] = [];
@@ -123,12 +129,22 @@ export async function checkBuild(project: LoadedProject, timeline: TimelinePlan)
       actual: `${measured.truePeak.toFixed(2)} dBTP`,
       expected: `<= ${(target.truePeak + 0.3).toFixed(2)} dBTP`,
     });
+    const narration = project.manifest.audio.narration;
+    const syntheticCount = narrationPlan?.syntheticCount ?? (!("sections" in narration) && narration.mode === "synthetic-prototype" ? 1 : 0);
     checks.push({
       name: "Narration mode",
-      passed: project.manifest.audio.narration.mode === "human-final",
-      actual: project.manifest.audio.narration.mode,
-      expected: "human-final",
+      passed: !final || syntheticCount === 0,
+      actual: syntheticCount === 0 ? "human-final" : `${syntheticCount} synthetic-prototype section(s)`,
+      expected: final ? "human-final" : "prototype or human-final",
     });
+    if (narrationPlan) {
+      checks.push({
+        name: "Narration timing",
+        passed: narrationPlan.allFit,
+        actual: narrationPlan.allFit ? "all sections fit" : "one or more sections overflow",
+        expected: "all sections fit assigned capacity",
+      });
+    }
   }
 
   const report: BuildReport = {

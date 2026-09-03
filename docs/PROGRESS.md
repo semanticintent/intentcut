@@ -4,9 +4,9 @@ Last updated: 2026-09-03
 
 ## Current position
 
-**Phase:** Milestone 2 — deterministic preview
+**Phase:** Milestone 3 — narration as source
 **Status:** Complete
-**Reference case:** Orbweaver WebMCP Challenge demo
+**Reference cases:** Orbweaver WebMCP Challenge demo and temporary narration demo
 
 ## Progress legend
 
@@ -51,8 +51,8 @@ Maximum runtime:   03:00.000
 Result:            PASS
 ```
 
-The compiler front end, CLI, media inspection, and six unit tests pass on
-2026-09-03. Milestone 2 is ready to begin.
+The compiler front end, CLI, and media inspection were verified on 2026-09-03
+before the deterministic renderer milestone began.
 
 ## Milestone 2 — Deterministic preview
 
@@ -86,9 +86,41 @@ Visual sampling confirmed the opening push-in, both screen-recording sections,
 and the closing card. Rendered media and generated reports remain local and are
 intentionally ignored by Git.
 
+## Milestone 3 — Narration as source
+
+- [x] Define independently replaceable narration sections.
+- [x] Generate temporary speech locally with the macOS system voice.
+- [x] Inspect every generated section with ffprobe.
+- [x] Compare narration duration with assigned scene capacity.
+- [x] Assemble positioned sections into the rendered audio mix.
+- [x] Normalize the combined narration track.
+- [x] Permit synthetic narration in preview builds.
+- [x] Block final rendering while synthetic sections remain.
+- [x] Replace a single section with human-final audio through the CLI.
+- [x] Scaffold a narration-ready production with `intentcut init`.
+- [x] Produce JSON and Markdown narration reports.
+- [x] Render and validate the temporary-narration example.
+
+## Milestone 3 verified result
+
+The first local narration prototype contains two independently generated
+sections:
+
+```text
+opening   capacity 00:08.000 · narration 00:05.579 · PASS
+closing   capacity 00:09.000 · narration 00:05.302 · PASS
+```
+
+IntentCut compiled them into a 17-second, 1920×1080 preview with normalized
+audio. Preview validation passed, while a deliberate `--final` attempt was
+blocked before rendering because two synthetic prototype sections remained.
+
+The automated suite now contains 13 passing tests across duration parsing,
+manifest governance, project scaffolding, timeline compilation, and render
+planning.
+
 ## Later milestones
 
-- [ ] Temporary synthetic timing narration.
 - [ ] Designed annotations, captions, and camera movement.
 - [ ] Contact sheets, transcription, and assisted cut detection.
 - [ ] OBS capture adapter.
@@ -130,3 +162,16 @@ source files.
 
 Every render records the resolved FFmpeg argument list beside its reports. The
 engine remains an inspectable adapter rather than hidden process state.
+
+### 2026-09-03 — Narration authority
+
+Temporary system speech is valid for timing previews but is non-final by
+default. Each section must become `human-final` before IntentCut permits a final
+render. Replacement changes the manifest source and mode without reconstructing
+the surrounding edit.
+
+### 2026-09-03 — Local-first prototype voice
+
+The initial narration provider is the macOS `say` command. It requires no
+account, API key, network service, or voice cloning. Provider adapters can be
+introduced later without changing the sectioned narration contract.

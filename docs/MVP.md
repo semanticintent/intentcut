@@ -64,6 +64,13 @@ rate, duration, audio, loudness, true-peak, and narration-mode checks.
 These remain part of the concept. They follow only after the deterministic
 compiler and renderer work end to end.
 
+## Post-MVP progress
+
+The deterministic compiler and renderer are complete. The subsequent narration
+milestone now provides local temporary speech, section timing, replaceable human
+voice files, and a final-render safety gate. See `PROGRESS.md` for the current
+verified state.
+
 ## Reference facts
 
 The local Orbweaver production currently contains:

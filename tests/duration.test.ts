@@ -16,5 +16,6 @@ describe("duration", () => {
   it("formats timeline timestamps", () => {
     expect(formatDuration(172_000)).toBe("02:52.000");
     expect(formatDuration(1_234)).toBe("00:01.234");
+    expect(formatDuration(-1_234)).toBe("-00:01.234");
   });
 });

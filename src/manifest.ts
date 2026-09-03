@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, parseDocument } from "yaml";
 import { z } from "zod";
 
 const durationSchema = z.string().regex(
@@ -33,6 +33,49 @@ const videoSceneSchema = baseSceneSchema.extend({
   speed: z.number().positive().max(100).default(1),
 });
 
+const narrationModeSchema = z.enum(["human-final", "synthetic-prototype"]);
+
+const singleNarrationSchema = z.object({
+  source: z.string().min(1),
+  mode: narrationModeSchema,
+});
+
+const narrationSectionSchema = z.object({
+  id: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/),
+  scene: z.string().min(1),
+  script: z.string().min(1),
+  offset: durationSchema.default("0s"),
+  mode: narrationModeSchema.default("synthetic-prototype"),
+  source: z.string().min(1).optional(),
+  voice: z.string().min(1).optional(),
+  rate: z.number().int().min(80).max(450).optional(),
+}).superRefine((section, context) => {
+  if (section.mode === "human-final" && !section.source) {
+    context.addIssue({
+      code: "custom",
+      message: "Human-final narration requires a source file.",
+      path: ["source"],
+    });
+  }
+});
+
+const sectionedNarrationSchema = z.object({
+  sections: z.array(narrationSectionSchema).min(1),
+  generatedDirectory: z.string().min(1).default("narration/generated"),
+}).superRefine((narration, context) => {
+  const ids = new Set<string>();
+  narration.sections.forEach((section, index) => {
+    if (ids.has(section.id)) {
+      context.addIssue({
+        code: "custom",
+        message: `Duplicate narration section id "${section.id}".`,
+        path: ["sections", index, "id"],
+      });
+    }
+    ids.add(section.id);
+  });
+});
+
 export const projectManifestSchema = z.object({
   version: z.literal(1),
   project: z.object({
@@ -46,10 +89,7 @@ export const projectManifestSchema = z.object({
   }),
   scenes: z.array(z.discriminatedUnion("type", [imageSceneSchema, videoSceneSchema])).min(1),
   audio: z.object({
-    narration: z.object({
-      source: z.string().min(1),
-      mode: z.enum(["human-final", "synthetic-prototype"]),
-    }),
+    narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),
     loudness: z.object({
       integrated: z.number().min(-70).max(-5).default(-16),
       truePeak: z.number().min(-9).max(0).default(-1.5),
@@ -74,10 +114,26 @@ export const projectManifestSchema = z.object({
     }
     ids.add(scene.id);
   });
+
+  const narration = manifest.audio?.narration;
+  if (narration && "sections" in narration) {
+    const sceneIds = new Set(manifest.scenes.map((scene) => scene.id));
+    narration.sections.forEach((section, index) => {
+      if (!sceneIds.has(section.scene)) {
+        context.addIssue({
+          code: "custom",
+          message: `Narration section references unknown scene "${section.scene}".`,
+          path: ["audio", "narration", "sections", index, "scene"],
+        });
+      }
+    });
+  }
 });
 
 export type ProjectManifest = z.infer<typeof projectManifestSchema>;
 export type ProjectScene = ProjectManifest["scenes"][number];
+export type Narration = NonNullable<ProjectManifest["audio"]>["narration"];
+export type NarrationSection = Extract<Narration, { sections: unknown }>["sections"][number];
 
 export interface LoadedProject {
   manifest: ProjectManifest;
@@ -100,4 +156,31 @@ export async function loadProject(manifestPath: string): Promise<LoadedProject> 
 
 export function resolveProjectPath(project: LoadedProject, source: string): string {
   return path.resolve(project.baseDirectory, source);
+}
+
+export async function replaceNarrationSection(
+  manifestPath: string,
+  sectionId: string,
+  source: string,
+): Promise<void> {
+  const absolutePath = path.resolve(manifestPath);
+  const text = await readFile(absolutePath, "utf8");
+  const document = parseDocument(text);
+  const parsed = projectManifestSchema.parse(document.toJS() as unknown);
+  const narration = parsed.audio?.narration;
+
+  if (!narration || !("sections" in narration)) {
+    throw new Error("The project does not use sectioned narration.");
+  }
+
+  const index = narration.sections.findIndex((section) => section.id === sectionId);
+  if (index < 0) {
+    throw new Error(`Unknown narration section "${sectionId}".`);
+  }
+
+  document.setIn(["audio", "narration", "sections", index, "mode"], "human-final");
+  document.setIn(["audio", "narration", "sections", index, "source"], source);
+  const updated = document.toString({ lineWidth: 0 });
+  projectManifestSchema.parse(parseYaml(updated) as unknown);
+  await writeFile(absolutePath, updated, "utf8");
 }

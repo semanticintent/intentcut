@@ -5,12 +5,14 @@ import type { LoadedProject, ProjectScene } from "./manifest.js";
 import { resolveProjectPath } from "./manifest.js";
 import { runProcess } from "./process.js";
 import type { TimelinePlan } from "./timeline.js";
+import type { NarrationPlan } from "./narration.js";
 
 export interface RenderPlan {
   outputPath: string;
   reportDirectory: string;
   arguments: string[];
   narrationMode?: "human-final" | "synthetic-prototype";
+  syntheticNarrationSections: number;
 }
 
 function seconds(milliseconds: number): string {
@@ -57,7 +59,11 @@ function sceneInputArguments(scene: ProjectScene, project: LoadedProject, fps: n
   return ["-i", source];
 }
 
-export function createRenderPlan(project: LoadedProject, timeline: TimelinePlan): RenderPlan {
+export function createRenderPlan(
+  project: LoadedProject,
+  timeline: TimelinePlan,
+  narrationPlan?: NarrationPlan,
+): RenderPlan {
   const { width, height, fps } = timeline.canvas;
   const argumentsList: string[] = ["-hide_banner", "-y"];
   const filters: string[] = [];
@@ -85,13 +91,27 @@ export function createRenderPlan(project: LoadedProject, timeline: TimelinePlan)
   const videoLabels = project.manifest.scenes.map((_, index) => `[v${index}]`).join("");
   filters.push(`${videoLabels}concat=n=${project.manifest.scenes.length}:v=1:a=0[vout]`);
 
-  if (project.manifest.audio) {
-    const audioInput = project.manifest.scenes.length;
-    const narrationPath = resolveProjectPath(project, project.manifest.audio.narration.source);
-    argumentsList.push("-i", narrationPath);
+  const narration = project.manifest.audio?.narration;
+  if (project.manifest.audio && narration) {
+    const firstAudioInput = project.manifest.scenes.length;
+    if ("sections" in narration) {
+      if (!narrationPlan) throw new Error("Sectioned narration requires a narration plan.");
+      narrationPlan.sections.forEach((section) => argumentsList.push("-i", section.audioPath));
+      const delayedLabels = narrationPlan.sections.map((section, index) => {
+        const label = `na${index}`;
+        filters.push(
+          `[${firstAudioInput + index}:a]aresample=48000,adelay=${Math.round(section.startMilliseconds)}:all=1[${label}]`,
+        );
+        return `[${label}]`;
+      }).join("");
+      filters.push(`${delayedLabels}amix=inputs=${narrationPlan.sections.length}:duration=longest:normalize=0[narration]`);
+    } else {
+      argumentsList.push("-i", resolveProjectPath(project, narration.source));
+      filters.push(`[${firstAudioInput}:a]aresample=48000[narration]`);
+    }
     const loudness = project.manifest.audio.loudness;
     filters.push(
-      `[${audioInput}:a]atrim=duration=${seconds(timeline.durationMilliseconds)},asetpts=PTS-STARTPTS,` +
+      `[narration]apad,atrim=duration=${seconds(timeline.durationMilliseconds)},asetpts=PTS-STARTPTS,` +
       `loudnorm=I=${loudness.integrated}:TP=${loudness.truePeak}:LRA=${loudness.range}[aout]`,
     );
   }
@@ -117,7 +137,8 @@ export function createRenderPlan(project: LoadedProject, timeline: TimelinePlan)
     outputPath,
     reportDirectory: resolveProjectPath(project, project.manifest.output.reportDirectory),
     arguments: argumentsList,
-    ...(project.manifest.audio ? { narrationMode: project.manifest.audio.narration.mode } : {}),
+    syntheticNarrationSections: narrationPlan?.syntheticCount ?? (narration && !("sections" in narration) && narration.mode === "synthetic-prototype" ? 1 : 0),
+    ...(narration && !("sections" in narration) ? { narrationMode: narration.mode } : {}),
   };
 }
 

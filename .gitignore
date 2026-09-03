@@ -12,6 +12,7 @@ renders/
 reports/
 examples/**/renders/
 examples/**/reports/
+examples/**/narration/generated/
 
 # Environment and temporary files
 .env
