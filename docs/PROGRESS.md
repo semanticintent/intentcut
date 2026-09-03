@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 6 — capture workflow
-**Status:** In progress · OBS adapter contract complete; live transport remains
+**Status:** In progress · OBS adapter and production transport complete; live verification remains
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -264,7 +264,12 @@ proposal stable across repeated runs against unchanged evidence.
 - [x] Refuse undeclared takes and recordings started outside IntentCut.
 - [x] Preserve an active-take lifecycle through stop and close operations.
 - [x] Return captured media as an uningested receipt.
-- [ ] Implement and verify the production OBS WebSocket transport.
+- [x] Implement the production OBS WebSocket 5.x JSON transport.
+- [x] Implement challenge authentication with Node's built-in SHA-256.
+- [x] Correlate requests and responses with bounded timeouts.
+- [x] Propagate OBS request failures and reject requests on connection loss.
+- [x] Verify the protocol through an injected WebSocket implementation.
+- [ ] Verify connection and one disposable take against a live OBS installation.
 - [ ] Ingest completed takes without overwriting existing media.
 
 ## Milestone 6A verified result
@@ -321,6 +326,28 @@ Inline manifest password     schema rejected
 
 The automated suite contains 34 tests across eleven files. A real WebSocket
 transport is deliberately separate from this authority contract.
+
+## Milestone 6D verified result
+
+IntentCut now contains a production OBS WebSocket 5.x JSON transport beneath
+the existing capture-authority adapter. It follows the official Hello →
+Identify → Identified handshake, performs challenge authentication with Node's
+built-in SHA-256, and correlates Request and RequestResponse messages.
+
+```text
+Protocol encoding       JSON · obswebsocket.json
+RPC version             1
+Handshake               bounded · authenticated or unauthenticated
+Requests                correlated · bounded timeout
+OBS failures            propagated with status code and comment
+Connection loss         all pending requests rejected
+Live OBS verification   pending · OBS not installed
+Automated suite         39 tests across 12 files · PASS
+```
+
+The initially evaluated community client was not retained because it introduced
+an unmaintained cryptography dependency. IntentCut instead depends only on `ws`
+for WebSocket framing and uses the Node runtime for cryptography.
 
 ## Decision log
 
@@ -473,3 +500,23 @@ connection before the transport is called.
 Stopping a declared OBS take returns the actual OBS output path alongside the
 expected IntentCut source path in a `captured-uningested` receipt. Moving or
 overwriting source media requires a later, separate ingestion decision.
+
+### 2026-09-03 — Protocol transport stays beneath authority
+
+The WebSocket transport understands OBS protocol messages but does not know
+which takes are authorized. The capture adapter remains responsible for
+enablement, declared-take checks, external-recording refusal, and lifecycle
+state.
+
+### 2026-09-03 — Maintained cryptography boundary
+
+The first evaluated JavaScript client brought a deprecated cryptography
+dependency. IntentCut uses the official OBS protocol directly, delegates JSON
+WebSocket framing to `ws`, and performs the two-stage SHA-256 authentication
+calculation with Node's built-in `crypto` module.
+
+### 2026-09-03 — No unverified live claim
+
+The transport and adapter are verified independently with injected fakes. Since
+OBS is absent from this workstation, live connection and recording remain
+explicitly pending rather than inferred from protocol-test success.

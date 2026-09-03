@@ -167,7 +167,11 @@ The adapter accepts a replaceable transport, allowing its authority and
 lifecycle rules to be tested without connecting to OBS. It permits only
 declared takes, refuses to adopt an external recording, refuses to close during
 an active take, and returns a `captured-uningested` receipt after stopping.
-A production WebSocket transport and ingestion command remain future work.
+A production OBS WebSocket 5.x JSON transport is included. It uses Node's
+built-in SHA-256 implementation for challenge authentication and supports
+bounded connection and request timeouts. Live control remains available only
+through separate TypeScript API calls; no CLI command currently connects or
+records. Ingestion remains future work. See [OBS integration](./docs/OBS.md).
 
 Create a narration-ready production workspace with:
 

@@ -26,11 +26,13 @@
   },
   "dependencies": {
     "sharp": "^0.35.4",
+    "ws": "^8.21.3",
     "yaml": "^2.8.1",
     "zod": "^4.1.5"
   },
   "devDependencies": {
     "@types/node": "^22.18.1",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
