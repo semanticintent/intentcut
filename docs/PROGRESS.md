@@ -4,9 +4,10 @@ Last updated: 2026-09-03
 
 ## Current position
 
-**Phase:** Milestone 3 — narration as source
+**Phase:** Milestone 4 — semantic visual grammar
 **Status:** Complete
-**Reference cases:** Orbweaver WebMCP Challenge demo and temporary narration demo
+**Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
+and bounded camera demo
 
 ## Progress legend
 
@@ -119,9 +120,40 @@ The automated suite now contains 13 passing tests across duration parsing,
 manifest governance, project scaffolding, timeline compilation, and render
 planning.
 
+## Milestone 4 — Semantic visual grammar
+
+- [x] Define timed, positioned, and semantically toned annotations.
+- [x] Render annotation artwork without optional FFmpeg text filters.
+- [x] Define bounded camera movements for recorded scenes.
+- [x] Compile smooth camera enter, hold, and return phases.
+- [x] Generate portable WebVTT captions from narration sections.
+- [x] Validate annotation and caption coverage in build reports.
+- [x] Add camera, annotation, and caption compiler tests.
+- [x] Render and visually inspect focused and unfocused reference frames.
+
+## Milestone 4 verified result
+
+The narration example renders a branded annotation and two WebVTT cues while
+retaining its 17-second timing and passing the existing audio gate. A separate
+12-second camera fixture begins on the full ChatGPT and Orbweaver workspace,
+moves toward the meaningful application region, holds with the annotation
+`Focus follows meaning`, and returns to the full shared context.
+
+```text
+Narration preview       1920x1080 · 30 fps · 00:17.000 · PASS
+Camera preview          1920x1080 · 30 fps · 00:12.033 · PASS
+Annotation checks       timed and bounded · PASS
+Caption checks          2 WebVTT cues · PASS
+Automated suite         15 tests across 6 files · PASS
+```
+
+The annotation renderer uses SVG as its design source and Sharp to produce
+transparent overlays. This preserves typography and layout even when the local
+FFmpeg build does not include `drawtext` or `subtitles` filters.
+
 ## Later milestones
 
-- [ ] Designed annotations, captions, and camera movement.
+- [x] Designed annotations, captions, and camera movement.
 - [ ] Contact sheets, transcription, and assisted cut detection.
 - [ ] OBS capture adapter.
 - [ ] Bounded agent interface.
@@ -175,3 +207,16 @@ the surrounding edit.
 The initial narration provider is the macOS `say` command. It requires no
 account, API key, network service, or voice cloning. Provider adapters can be
 introduced later without changing the sectioned narration contract.
+
+### 2026-09-03 — Semantic visual grammar
+
+Camera instructions describe editorial attention as a center, zoom, hold, and
+transition inside a scene. They do not expose raw FFmpeg expressions or a
+general keyframe language. Annotations similarly declare content, position,
+and tone while IntentCut owns their visual rendering.
+
+### 2026-09-03 — Portable captions
+
+Sectioned narration is the caption source. IntentCut derives WebVTT cue timing
+from the same resolved narration plan used by the audio mix, preventing a
+second hand-maintained timing track.

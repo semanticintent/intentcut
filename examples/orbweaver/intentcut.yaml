@@ -33,11 +33,27 @@ scenes:
       in: 0s
       out: 112.915s
     speed: 1
+    camera:
+      - at: 20s
+        duration: 5s
+        transition: 750ms
+        zoom: 1.15
+        center:
+          x: 0.74
+          y: 0.58
 
   - id: closing
     type: image
     source: ../../../orbweaver/challenge-video/assets/02-closing-card.png
     duration: 8.388s
+
+annotations:
+  - id: trust-boundary
+    at: 1.05m
+    duration: 4s
+    text: Validated ≠ accepted
+    position: bottom-right
+    tone: warning
 
 audio:
   narration:

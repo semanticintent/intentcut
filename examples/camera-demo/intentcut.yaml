@@ -1,0 +1,39 @@
+version: 1
+
+project:
+  title: IntentCut Camera Focus
+  resolution:
+    width: 1920
+    height: 1080
+  fps: 30
+  maximumDuration: 15s
+
+scenes:
+  - id: workspace
+    type: video
+    source: ../../../orbweaver/challenge-video/recordings/screen/01-create.mov
+    trim:
+      in: 20s
+      out: 32s
+    speed: 1
+    camera:
+      - at: 2s
+        duration: 4s
+        transition: 1s
+        zoom: 1.35
+        center:
+          x: 0.75
+          y: 0.55
+
+annotations:
+  - id: focus-label
+    at: 3s
+    duration: 4s
+    text: Focus follows meaning
+    position: top-left
+    tone: accent
+
+output:
+  file: renders/camera-preview.mp4
+  codec: h264
+  reportDirectory: reports

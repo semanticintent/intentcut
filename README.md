@@ -14,9 +14,10 @@ Read the complete [concept](./CONCEPT.md).
 
 ## Status
 
-Milestone 2 is complete. IntentCut validates YAML manifests, inspects media,
+Milestone 4 is complete. IntentCut validates YAML manifests, inspects media,
 resolves an exact timeline, compiles it through FFmpeg, and validates the
-rendered artifact with JSON and Markdown reports.
+rendered artifact with JSON and Markdown reports. Its visual grammar now
+includes timed annotations, portable WebVTT captions, and bounded camera moves.
 
 The first proving experiment successfully reconstructed the completed
 Orbweaver WebMCP Challenge sequence from a declarative manifest and its existing
@@ -32,6 +33,37 @@ npm run dev -- plan examples/orbweaver/intentcut.yaml
 npm run dev -- render examples/orbweaver/intentcut.yaml --preview
 npm run dev -- check examples/orbweaver/intentcut.yaml
 ```
+
+Declare editorial emphasis in the manifest rather than editing keyframes:
+
+```yaml
+scenes:
+  - id: workspace
+    kind: video
+    source: media/workspace.mov
+    camera:
+      - at: 2s
+        duration: 4s
+        transition: 1s
+        zoom: 1.35
+        center: { x: 0.75, y: 0.55 }
+
+annotations:
+  - id: focus-meaning
+    at: 3s
+    duration: 4s
+    text: Focus follows meaning
+    position: top-left
+    tone: accent
+
+output:
+  captions:
+    file: reports/captions.vtt
+```
+
+Camera moves are bounded to their scene and annotations are rendered as
+designed image overlays, so they do not depend on optional FFmpeg text filters.
+Sectioned narration can also compile into a portable WebVTT sidecar.
 
 Create a narration-ready production workspace with:
 

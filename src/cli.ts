@@ -8,6 +8,7 @@ import { formatNarrationPlan, generateTemporaryNarration, planNarration, writeNa
 import { compileTimeline } from "./timeline.js";
 import { createRenderPlan, renderPreview } from "./render.js";
 import { initializeProject } from "./scaffold.js";
+import { createCaptionPlan, writeCaptions } from "./captions.js";
 
 function usage(): string {
   return [
@@ -81,6 +82,7 @@ async function main(): Promise<void> {
 
   const narration = project.manifest.audio?.narration;
   let narrationPlan;
+  let captionPlan;
   if (narration && "sections" in narration) {
     if (command === "narrate") {
       if (!process.argv.includes("--temporary")) throw new Error("Pass --temporary to generate prototype narration.");
@@ -89,6 +91,8 @@ async function main(): Promise<void> {
     }
     narrationPlan = await planNarration(project, timeline);
     await writeNarrationReport(project, narrationPlan);
+    captionPlan = await createCaptionPlan(project, narrationPlan);
+    if (captionPlan) await writeCaptions(captionPlan);
   }
 
   if (command === "narrate") {
@@ -118,14 +122,14 @@ async function main(): Promise<void> {
     const renderPlan = createRenderPlan(project, timeline, narrationPlan);
     console.log(`Rendering ${renderPlan.outputPath}`);
     await renderPreview(renderPlan);
-    const report = await checkBuild(project, timeline, narrationPlan, final);
+    const report = await checkBuild(project, timeline, narrationPlan, final, captionPlan);
     console.log(formatBuildReport(report));
     if (!report.passed) process.exitCode = 2;
     return;
   }
 
   if (command === "check") {
-    const report = await checkBuild(project, timeline, narrationPlan, process.argv.includes("--final"));
+    const report = await checkBuild(project, timeline, narrationPlan, process.argv.includes("--final"), captionPlan);
     console.log(formatBuildReport(report));
     if (!report.passed) process.exitCode = 2;
     return;

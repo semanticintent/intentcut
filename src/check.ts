@@ -7,6 +7,7 @@ import { resolveProjectPath } from "./manifest.js";
 import { runProcess } from "./process.js";
 import type { TimelinePlan } from "./timeline.js";
 import type { NarrationPlan } from "./narration.js";
+import type { CaptionPlan } from "./captions.js";
 
 export interface CheckResult {
   name: string;
@@ -72,6 +73,7 @@ export async function checkBuild(
   timeline: TimelinePlan,
   narrationPlan?: NarrationPlan,
   final = false,
+  captionPlan?: CaptionPlan,
 ): Promise<BuildReport> {
   const outputPath = resolveProjectPath(project, project.manifest.output.file);
   const inspection = await inspectMedia(project.manifest.output.file, outputPath);
@@ -145,6 +147,24 @@ export async function checkBuild(
         expected: "all sections fit assigned capacity",
       });
     }
+  }
+
+  if ((project.manifest.annotations?.length ?? 0) > 0) {
+    checks.push({
+      name: "Annotations",
+      passed: true,
+      actual: `${project.manifest.annotations?.length ?? 0} timed overlay(s)`,
+      expected: "within timeline",
+    });
+  }
+
+  if (project.manifest.output.captions) {
+    checks.push({
+      name: "Captions",
+      passed: Boolean(captionPlan?.cues.length),
+      actual: captionPlan ? `${captionPlan.cues.length} WebVTT cue(s)` : "missing",
+      expected: "generated from narration sections",
+    });
   }
 
   const report: BuildReport = {

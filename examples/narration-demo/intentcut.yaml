@@ -23,6 +23,14 @@ scenes:
     source: ../../../orbweaver/challenge-video/assets/02-closing-card.png
     duration: 9s
 
+annotations:
+  - id: prototype-label
+    at: 2s
+    duration: 4s
+    text: Temporary narration · timing first
+    position: bottom-left
+    tone: accent
+
 audio:
   narration:
     generatedDirectory: narration/generated
@@ -46,3 +54,5 @@ output:
   file: renders/narration-preview.mp4
   codec: h264
   reportDirectory: reports
+  captions:
+    file: reports/captions.vtt

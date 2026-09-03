@@ -23,6 +23,16 @@ export interface TimelinePlan {
     fps: number;
   };
   scenes: TimelineScene[];
+  annotations: TimelineAnnotation[];
+}
+
+export interface TimelineAnnotation {
+  id: string;
+  text: string;
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
+  tone: "neutral" | "accent" | "warning";
+  startMilliseconds: number;
+  endMilliseconds: number;
 }
 
 function resolveSceneDuration(
@@ -78,6 +88,32 @@ export function compileTimeline(
   });
 
   const maximumDurationMilliseconds = parseDuration(project.manifest.project.maximumDuration);
+  const annotations = (project.manifest.annotations ?? []).map((annotation): TimelineAnnotation => {
+    const startMilliseconds = parseDuration(annotation.at);
+    const endMilliseconds = startMilliseconds + parseDuration(annotation.duration);
+    if (endMilliseconds > cursor) {
+      throw new Error(`Annotation "${annotation.id}" exceeds the planned timeline.`);
+    }
+    return {
+      id: annotation.id,
+      text: annotation.text,
+      position: annotation.position,
+      tone: annotation.tone,
+      startMilliseconds,
+      endMilliseconds,
+    };
+  });
+
+  project.manifest.scenes.forEach((scene, index) => {
+    if (scene.type !== "video" || !scene.camera?.length) return;
+    const timelineScene = scenes[index];
+    const focus = scene.camera[0];
+    if (!timelineScene || !focus) return;
+    const extent = parseDuration(focus.at) + parseDuration(focus.duration) + (2 * parseDuration(focus.transition));
+    if (extent > timelineScene.durationMilliseconds) {
+      throw new Error(`Camera movement in scene "${scene.id}" exceeds the scene duration.`);
+    }
+  });
 
   return {
     title: project.manifest.project.title,
@@ -90,5 +126,6 @@ export function compileTimeline(
       fps: project.manifest.project.fps,
     },
     scenes,
+    annotations,
   };
 }

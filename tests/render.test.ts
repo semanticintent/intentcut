@@ -69,6 +69,7 @@ const timeline: TimelinePlan = {
       speed: 2,
     },
   ],
+  annotations: [],
 };
 
 describe("render planning", () => {
@@ -132,5 +133,42 @@ describe("render planning", () => {
     expect(filterGraph).toContain("adelay=0:all=1[na0]");
     expect(filterGraph).toContain("adelay=6000:all=1[na1]");
     expect(filterGraph).toContain("amix=inputs=2:duration=longest:normalize=0");
+  });
+
+  it("compiles bounded camera movement and annotation overlays", () => {
+    const visualProject = structuredClone(project);
+    const video = visualProject.manifest.scenes[1];
+    if (video?.type === "video") {
+      video.camera = [{
+        at: "1s",
+        duration: "3s",
+        transition: "500ms",
+        zoom: 1.25,
+        center: { x: 0.75, y: 0.5 },
+      }];
+    }
+    visualProject.manifest.annotations = [{
+      id: "meaning",
+      at: "6s",
+      duration: "3s",
+      text: "Meaning, not pixels",
+      position: "bottom-left",
+      tone: "accent",
+    }];
+    const visualTimeline = structuredClone(timeline);
+    visualTimeline.annotations = [{
+      id: "meaning",
+      text: "Meaning, not pixels",
+      position: "bottom-left",
+      tone: "accent",
+      startMilliseconds: 6_000,
+      endMilliseconds: 9_000,
+    }];
+
+    const plan = createRenderPlan(visualProject, visualTimeline);
+    const filterGraph = plan.arguments[plan.arguments.indexOf("-filter_complex") + 1];
+    expect(filterGraph).toContain("zoompan");
+    expect(filterGraph).toContain("overlay=0:0:enable='between(t,6.000000,9.000000)':shortest=1");
+    expect(plan.annotationAssets).toHaveLength(1);
   });
 });

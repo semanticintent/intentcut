@@ -31,6 +31,25 @@ const videoSceneSchema = baseSceneSchema.extend({
     out: durationSchema.optional(),
   }).optional(),
   speed: z.number().positive().max(100).default(1),
+  camera: z.array(z.object({
+    at: durationSchema,
+    duration: durationSchema,
+    transition: durationSchema.default("500ms"),
+    zoom: z.number().min(1.01).max(3),
+    center: z.object({
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+    }),
+  })).max(1, "Milestone 4 supports one focus movement per video scene.").optional(),
+});
+
+const annotationSchema = z.object({
+  id: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/),
+  at: durationSchema,
+  duration: durationSchema,
+  text: z.string().min(1).max(120),
+  position: z.enum(["top-left", "top-right", "bottom-left", "bottom-right", "center"]),
+  tone: z.enum(["neutral", "accent", "warning"]).default("neutral"),
 });
 
 const narrationModeSchema = z.enum(["human-final", "synthetic-prototype"]);
@@ -88,6 +107,7 @@ export const projectManifestSchema = z.object({
     maximumDuration: durationSchema,
   }),
   scenes: z.array(z.discriminatedUnion("type", [imageSceneSchema, videoSceneSchema])).min(1),
+  annotations: z.array(annotationSchema).default([]),
   audio: z.object({
     narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),
     loudness: z.object({
@@ -100,6 +120,9 @@ export const projectManifestSchema = z.object({
     file: z.string().min(1),
     codec: z.literal("h264").default("h264"),
     reportDirectory: z.string().min(1).default("reports"),
+    captions: z.object({
+      file: z.string().min(1).default("captions.vtt"),
+    }).optional(),
   }),
 }).superRefine((manifest, context) => {
   const ids = new Set<string>();
@@ -128,6 +151,18 @@ export const projectManifestSchema = z.object({
       }
     });
   }
+
+  const annotationIds = new Set<string>();
+  manifest.annotations.forEach((annotation, index) => {
+    if (annotationIds.has(annotation.id)) {
+      context.addIssue({
+        code: "custom",
+        message: `Duplicate annotation id "${annotation.id}".`,
+        path: ["annotations", index, "id"],
+      });
+    }
+    annotationIds.add(annotation.id);
+  });
 });
 
 export type ProjectManifest = z.infer<typeof projectManifestSchema>;

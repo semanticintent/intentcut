@@ -68,8 +68,10 @@ compiler and renderer work end to end.
 
 The deterministic compiler and renderer are complete. The subsequent narration
 milestone now provides local temporary speech, section timing, replaceable human
-voice files, and a final-render safety gate. See `PROGRESS.md` for the current
-verified state.
+voice files, and a final-render safety gate. IntentCut also supports a bounded
+visual grammar: timed annotations, WebVTT captions generated from narration
+sections, and camera moves that enter, hold, and return within one scene. See
+`PROGRESS.md` for the current verified state.
 
 ## Reference facts
 
