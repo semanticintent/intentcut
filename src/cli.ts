@@ -10,6 +10,7 @@ import { createRenderPlan, renderPreview } from "./render.js";
 import { initializeProject } from "./scaffold.js";
 import { createCaptionPlan, writeCaptions } from "./captions.js";
 import { analyzeSources, formatSourceAnalysis } from "./analyze.js";
+import { createFirstCutProposal, formatFirstCutProposal, writeFirstCutProposal } from "./first-cut.js";
 
 function usage(): string {
   return [
@@ -85,6 +86,10 @@ async function main(): Promise<void> {
   if (command === "analyze") {
     const report = await analyzeSources(project, timeline, inspections);
     console.log(formatSourceAnalysis(report));
+    const proposal = createFirstCutProposal(report);
+    const output = await writeFirstCutProposal(project, proposal);
+    console.log(formatFirstCutProposal(proposal));
+    console.log(`      ${output.yaml}`);
     return;
   }
 

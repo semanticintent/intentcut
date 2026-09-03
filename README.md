@@ -14,10 +14,12 @@ Read the complete [concept](./CONCEPT.md).
 
 ## Status
 
-Milestone 4 is complete. IntentCut validates YAML manifests, inspects media,
+Milestone 5 is complete. IntentCut validates YAML manifests, inspects media,
 resolves an exact timeline, compiles it through FFmpeg, and validates the
 rendered artifact with JSON and Markdown reports. Its visual grammar now
 includes timed annotations, portable WebVTT captions, and bounded camera moves.
+Source analysis produces contact sheets, visual and silence signals, transcript
+metadata, and an editable first-cut proposal without modifying the production.
 
 The first proving experiment successfully reconstructed the completed
 Orbweaver WebMCP Challenge sequence from a declarative manifest and its existing
@@ -40,7 +42,7 @@ Declare editorial emphasis in the manifest rather than editing keyframes:
 ```yaml
 scenes:
   - id: workspace
-    kind: video
+    type: video
     source: media/workspace.mov
     camera:
       - at: 2s
@@ -101,6 +103,20 @@ recordings without an audio stream are reported explicitly. Transcription stays
 provider-neutral: IntentCut imports WebVTT sidecars and preserves their declared
 provider, optional model, and human/local/hosted provenance instead of requiring
 one transcription service.
+
+Every analysis also writes `first-cut.proposal.yaml` and a JSON twin. The
+proposal divides each recording at credible visual transitions, attaches
+transcript coverage, and surfaces silence as a pending review action. All
+segments default to `keep`, every action defaults to `pending`, and the artifact
+declares:
+
+```yaml
+authority:
+  state: proposed-only
+  applied: false
+```
+
+IntentCut currently provides no command that applies this proposal.
 
 Create a narration-ready production workspace with:
 

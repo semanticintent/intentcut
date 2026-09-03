@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 5 — assisted source inspection
-**Status:** In progress · source signals complete; first-cut proposal remains
+**Status:** Complete
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -154,7 +154,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 ## Later milestones
 
 - [x] Designed annotations, captions, and camera movement.
-- [~] Contact sheets, transcription, and assisted cut detection.
+- [x] Contact sheets, transcription, and assisted cut detection.
 - [ ] OBS capture adapter.
 - [ ] Bounded agent interface.
 - [ ] Explicit human approval and release workflow.
@@ -172,7 +172,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 - [x] Report recordings that contain no audio without failing analysis.
 - [x] Import WebVTT transcript cues through a provider-neutral sidecar contract.
 - [x] Preserve transcript provider, model, and provenance metadata.
-- [ ] Generate an editable first-cut proposal without applying it.
+- [x] Generate an editable first-cut proposal without applying it.
 
 ## Milestone 5A verified result
 
@@ -226,6 +226,24 @@ format        webvtt
 
 The automated suite now contains 21 tests across seven files, including a real
 FFmpeg silence-detection integration test.
+
+## Milestone 5D verified result
+
+IntentCut now combines the independent source signals into deterministic YAML
+and JSON first-cut proposals. The Orbweaver proposal contains five default-keep
+segments and three pending review actions derived from the three verified visual
+transitions:
+
+```text
+create-proposal      2 segments · 1 pending review
+revise-and-undo      3 segments · 2 pending reviews
+Authority            proposed-only · applied: false
+Automated suite      23 tests across 8 files · PASS
+```
+
+Proposal timecodes use the same readable `HH:MM:SS.mmm` form as the rest of the
+production language. Analysis timestamps are deliberately excluded, making the
+proposal stable across repeated runs against unchanged evidence.
 
 ## Decision log
 
@@ -321,3 +339,17 @@ Silence regions are detected only when the recording contains an audio stream
 and are translated into original source time. A silent video track is not an
 error and is reported as `no-audio`, keeping absence distinct from analysis
 failure.
+
+### 2026-09-03 — First cuts are proposals
+
+The first-cut artifact segments recordings at credible visual transitions and
+attaches transcript coverage and silence reviews. Every segment begins as
+`keep`; every suggested action begins as `pending`; the artifact is explicitly
+`proposed-only` and `applied: false`. There is no apply command in this
+milestone.
+
+### 2026-09-03 — Stable editorial source
+
+First-cut proposals contain readable source timecodes but omit volatile run
+timestamps. The same analysis evidence therefore produces the same reviewable
+proposal and a meaningful version-control diff.
