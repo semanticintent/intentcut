@@ -20,6 +20,10 @@ inspection:
     threshold: 0.18
     minimumGap: 1s
     maximumCandidates: 20
+  silenceDetection:
+    thresholdDb: -35
+    minimumDuration: 500ms
+  transcripts: []
 
 scenes:
   - id: opening

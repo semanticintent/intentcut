@@ -79,12 +79,28 @@ inspection:
     threshold: 0.18
     minimumGap: 1s
     maximumCandidates: 20
+  silenceDetection:
+    thresholdDb: -35
+    minimumDuration: 500ms
+  transcripts:
+    - scene: workspace
+      source: transcripts/workspace.vtt
+      format: webvtt
+      provider: whisper.cpp
+      model: base.en
+      provenance: local-model
 ```
 
 The generated JPEG plus JSON and Markdown reports remain review artifacts under
 the configured report directory. Likely-cut detection scans reduced-resolution
 frames, collapses nearby hits, and emits a bounded list of source-timecoded
 suggestions. It never changes trims automatically.
+
+Silence analysis runs locally through FFmpeg when a recording contains audio;
+recordings without an audio stream are reported explicitly. Transcription stays
+provider-neutral: IntentCut imports WebVTT sidecars and preserves their declared
+provider, optional model, and human/local/hosted provenance instead of requiring
+one transcription service.
 
 Create a narration-ready production workspace with:
 

@@ -62,4 +62,18 @@ output: { file: renders/preview.mp4, codec: h264 }
     expect(updated).toContain("mode: human-final");
     expect(updated).toContain("source: narration/human/voice.wav");
   });
+
+  it("rejects transcript sidecars attached to unknown scenes", () => {
+    expect(() => projectManifestSchema.parse({
+      ...base,
+      inspection: {
+        transcripts: [{
+          scene: "missing",
+          source: "transcripts/missing.vtt",
+          provider: "manual",
+          provenance: "human",
+        }],
+      },
+    })).toThrow("unknown scene");
+  });
 });

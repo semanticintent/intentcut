@@ -119,9 +119,23 @@ export const projectManifestSchema = z.object({
       minimumGap: durationSchema.default("1s"),
       maximumCandidates: z.number().int().min(1).max(100).default(20),
     }).default({ threshold: 0.18, minimumGap: "1s", maximumCandidates: 20 }),
+    silenceDetection: z.object({
+      thresholdDb: z.number().min(-80).max(-10).default(-35),
+      minimumDuration: durationSchema.default("500ms"),
+    }).default({ thresholdDb: -35, minimumDuration: "500ms" }),
+    transcripts: z.array(z.object({
+      scene: z.string().min(1),
+      source: z.string().min(1),
+      format: z.literal("webvtt").default("webvtt"),
+      provider: z.string().min(1),
+      model: z.string().min(1).optional(),
+      provenance: z.enum(["human", "local-model", "hosted-model"]),
+    })).default([]),
   }).default({
     contactSheets: { samples: 12, columns: 4, frameWidth: 480 },
     cutDetection: { threshold: 0.18, minimumGap: "1s", maximumCandidates: 20 },
+    silenceDetection: { thresholdDb: -35, minimumDuration: "500ms" },
+    transcripts: [],
   }),
   audio: z.object({
     narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),
@@ -177,6 +191,16 @@ export const projectManifestSchema = z.object({
       });
     }
     annotationIds.add(annotation.id);
+  });
+
+  manifest.inspection.transcripts.forEach((transcript, index) => {
+    if (!ids.has(transcript.scene)) {
+      context.addIssue({
+        code: "custom",
+        message: `Transcript references unknown scene "${transcript.scene}".`,
+        path: ["inspection", "transcripts", index, "scene"],
+      });
+    }
   });
 });
 

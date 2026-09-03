@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 5 — assisted source inspection
-**Status:** In progress · contact sheets and likely-cut detection complete
+**Status:** In progress · source signals complete; first-cut proposal remains
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -168,8 +168,10 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 - [x] Verify both real Orbweaver recordings visually.
 - [x] Detect and bound likely visual cut regions.
 - [x] Verify suggested cut regions against real source frames.
-- [ ] Detect silence regions in sources with audio.
-- [ ] Attach transcription metadata through a provider-neutral adapter.
+- [x] Detect silence regions in sources with audio.
+- [x] Report recordings that contain no audio without failing analysis.
+- [x] Import WebVTT transcript cues through a provider-neutral sidecar contract.
+- [x] Preserve transcript provider, model, and provenance metadata.
 - [ ] Generate an editable first-cut proposal without applying it.
 
 ## Milestone 5A verified result
@@ -203,6 +205,27 @@ Automated suite   17 tests across 7 files                  PASS
 Each candidate uses source time—not compiled timeline time—so a creator can
 inspect or amend the original trim directly. No candidate is applied to the
 manifest.
+
+## Milestone 5C verified result
+
+IntentCut now analyzes audio locally through FFmpeg and imports transcript
+sidecars without depending on a transcription vendor. A real generated fixture
+containing one second of tone, two seconds of silence, and one final second of
+tone produced exactly one bounded silence region. The Orbweaver recordings
+correctly report that neither contains an audio stream.
+
+WebVTT transcript cues retain their timing while the analysis record preserves
+who or what produced the transcript:
+
+```text
+provider      free, declared adapter or service name
+model         optional model identifier
+provenance    human | local-model | hosted-model
+format        webvtt
+```
+
+The automated suite now contains 21 tests across seven files, including a real
+FFmpeg silence-detection integration test.
 
 ## Decision log
 
@@ -284,3 +307,17 @@ Likely-cut detection operates at reduced resolution and 10 frames per second.
 The manifest declares its confidence threshold, minimum gap, and maximum result
 count. IntentCut independently enforces all three after parsing FFmpeg metadata,
 then reports source-timecoded candidates without modifying the edit.
+
+### 2026-09-03 — Provider-neutral transcription
+
+IntentCut does not choose or bundle a speech model. Any local tool, hosted
+service, or human workflow that emits WebVTT can supply transcript evidence.
+Provider, model, and provenance remain explicit in the manifest and analysis
+report.
+
+### 2026-09-03 — Silence is source-relative
+
+Silence regions are detected only when the recording contains an audio stream
+and are translated into original source time. A silent video track is not an
+error and is reported as `no-audio`, keeping absence distinct from analysis
+failure.

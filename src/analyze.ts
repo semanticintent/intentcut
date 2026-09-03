@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp, { type OverlayOptions } from "sharp";
 import { formatDuration, parseDuration } from "./duration.js";
@@ -26,6 +26,36 @@ export interface SourceAnalysisReport {
   generatedAt: string;
   contactSheets: ContactSheetPlan[];
   cutCandidates: CutCandidate[];
+  audio: AudioAnalysis[];
+  transcripts: TranscriptAnalysis[];
+}
+
+export interface SilenceRegion {
+  sourceStartMilliseconds: number;
+  sourceEndMilliseconds: number;
+  durationMilliseconds: number;
+}
+
+export interface AudioAnalysis {
+  sceneId: string;
+  source: string;
+  status: "analyzed" | "no-audio";
+  silenceRegions: SilenceRegion[];
+}
+
+export interface TranscriptCue {
+  startMilliseconds: number;
+  endMilliseconds: number;
+  text: string;
+}
+
+export interface TranscriptAnalysis {
+  sceneId: string;
+  source: string;
+  provider: string;
+  model?: string;
+  provenance: "human" | "local-model" | "hosted-model";
+  cues: TranscriptCue[];
 }
 
 export interface CutCandidate {
@@ -192,6 +222,90 @@ async function detectCuts(project: LoadedProject, plan: ContactSheetPlan): Promi
   );
 }
 
+export function parseSilenceRegions(
+  stderr: string,
+  sourceStartMilliseconds: number,
+): SilenceRegion[] {
+  const starts = [...stderr.matchAll(/silence_start:\s*([0-9.]+)/g)].map((match) => Number(match[1]) * 1_000);
+  const ends = [...stderr.matchAll(/silence_end:\s*([0-9.]+)\s*\|\s*silence_duration:\s*([0-9.]+)/g)];
+  return ends.flatMap((match, index) => {
+    const start = starts[index];
+    const end = Number(match[1]) * 1_000;
+    const duration = Number(match[2]) * 1_000;
+    if (start === undefined || !Number.isFinite(end) || !Number.isFinite(duration)) return [];
+    return [{
+      sourceStartMilliseconds: sourceStartMilliseconds + Math.round(start),
+      sourceEndMilliseconds: sourceStartMilliseconds + Math.round(end),
+      durationMilliseconds: Math.round(duration),
+    }];
+  });
+}
+
+export async function analyzeAudio(
+  project: LoadedProject,
+  plan: ContactSheetPlan,
+  inspection: MediaInspection,
+): Promise<AudioAnalysis> {
+  if (!inspection.audio) {
+    return { sceneId: plan.sceneId, source: plan.source, status: "no-audio", silenceRegions: [] };
+  }
+  const config = project.manifest.inspection?.silenceDetection ?? { thresholdDb: -35, minimumDuration: "500ms" };
+  const durationMilliseconds = plan.sourceEndMilliseconds - plan.sourceStartMilliseconds;
+  const { stderr } = await runProcess("ffmpeg", [
+    "-v", "info",
+    "-ss", (plan.sourceStartMilliseconds / 1_000).toFixed(3),
+    "-t", (durationMilliseconds / 1_000).toFixed(3),
+    "-i", resolveProjectPath(project, plan.source),
+    "-af", `silencedetect=noise=${config.thresholdDb}dB:d=${(parseDuration(config.minimumDuration) / 1_000).toFixed(3)}`,
+    "-vn", "-f", "null", "-",
+  ]);
+  return {
+    sceneId: plan.sceneId,
+    source: plan.source,
+    status: "analyzed",
+    silenceRegions: parseSilenceRegions(stderr, plan.sourceStartMilliseconds),
+  };
+}
+
+function parseVttTimestamp(value: string): number {
+  const parts = value.trim().split(":").map(Number);
+  if (parts.some((part) => !Number.isFinite(part))) throw new Error(`Invalid WebVTT timestamp "${value}".`);
+  const [hours, minutes, seconds] = parts.length === 3 ? parts : [0, parts[0], parts[1]];
+  return Math.round(((hours ?? 0) * 3_600_000) + ((minutes ?? 0) * 60_000) + ((seconds ?? 0) * 1_000));
+}
+
+export function parseWebVtt(source: string): TranscriptCue[] {
+  const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
+  if (!normalized.trimStart().startsWith("WEBVTT")) throw new Error("Transcript must be a valid WEBVTT sidecar.");
+  const cues: TranscriptCue[] = [];
+  for (const block of normalized.split(/\n{2,}/).slice(1)) {
+    const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+    const timingIndex = lines.findIndex((line) => line.includes("-->"));
+    if (timingIndex < 0) continue;
+    const [start, endWithSettings] = (lines[timingIndex] ?? "").split("-->").map((part) => part.trim());
+    const end = endWithSettings?.split(/\s+/)[0];
+    if (!start || !end) continue;
+    const text = lines.slice(timingIndex + 1).join(" ").replace(/<[^>]+>/g, "").trim();
+    if (!text) continue;
+    cues.push({ startMilliseconds: parseVttTimestamp(start), endMilliseconds: parseVttTimestamp(end), text });
+  }
+  return cues;
+}
+
+async function loadTranscripts(project: LoadedProject): Promise<TranscriptAnalysis[]> {
+  return Promise.all((project.manifest.inspection?.transcripts ?? []).map(async (track) => {
+    const cues = parseWebVtt(await readFile(resolveProjectPath(project, track.source), "utf8"));
+    return {
+      sceneId: track.scene,
+      source: track.source,
+      provider: track.provider,
+      provenance: track.provenance,
+      cues,
+      ...(track.model ? { model: track.model } : {}),
+    };
+  }));
+}
+
 function markdownReport(report: SourceAnalysisReport): string {
   const lines = [
     `# IntentCut Source Analysis — ${report.project}`,
@@ -220,6 +334,16 @@ function markdownReport(report: SourceAnalysisReport): string {
     }
     lines.push("");
   }
+  lines.push("## Audio and silence", "");
+  for (const audio of report.audio) {
+    lines.push(`- ${audio.sceneId}: ${audio.status === "no-audio" ? "no audio stream" : `${audio.silenceRegions.length} silence region(s)`}`);
+  }
+  lines.push("", "## Transcripts", "");
+  if (report.transcripts.length === 0) lines.push("No transcript sidecars declared.", "");
+  for (const transcript of report.transcripts) {
+    lines.push(`- ${transcript.sceneId}: ${transcript.cues.length} cue(s) · ${transcript.provider}${transcript.model ? ` / ${transcript.model}` : ""} · ${transcript.provenance}`);
+  }
+  lines.push("");
   return `${lines.join("\n")}\n`;
 }
 
@@ -231,11 +355,19 @@ export async function analyzeSources(
   const contactSheets = createContactSheetPlans(project, timeline, inspections);
   await Promise.all(contactSheets.map((plan) => renderContactSheet(project, plan)));
   const cutCandidates = (await Promise.all(contactSheets.map((plan) => detectCuts(project, plan)))).flat();
+  const audio = await Promise.all(contactSheets.map((plan) => {
+    const inspection = inspections.get(plan.source);
+    if (!inspection) throw new Error(`Missing inspection data for scene "${plan.sceneId}".`);
+    return analyzeAudio(project, plan, inspection);
+  }));
+  const transcripts = await loadTranscripts(project);
   const report: SourceAnalysisReport = {
     project: project.manifest.project.title,
     generatedAt: new Date().toISOString(),
     contactSheets,
     cutCandidates,
+    audio,
+    transcripts,
   };
   const reportDirectory = resolveProjectPath(project, project.manifest.output.reportDirectory);
   await mkdir(reportDirectory, { recursive: true });
@@ -256,6 +388,10 @@ export function formatSourceAnalysis(report: SourceAnalysisReport): string {
   for (const candidate of report.cutCandidates) {
     lines.push(`      ${candidate.sceneId} · ${formatDuration(candidate.sourceTimeMilliseconds)} · confidence ${candidate.confidence.toFixed(4)}`);
   }
+  const analyzedAudio = report.audio.filter((item) => item.status === "analyzed");
+  const silenceCount = analyzedAudio.reduce((total, item) => total + item.silenceRegions.length, 0);
+  lines.push(`PASS  ${"Audio analysis".padEnd(22)} ${analyzedAudio.length} analyzed · ${report.audio.length - analyzedAudio.length} without audio · ${silenceCount} silence region(s)`);
+  lines.push(`PASS  ${"Transcripts".padEnd(22)} ${report.transcripts.length} sidecar(s) · ${report.transcripts.reduce((total, item) => total + item.cues.length, 0)} cue(s)`);
   lines.push("", `Result: ${report.contactSheets.length > 0 ? "PASS" : "NO VIDEO SCENES"}`);
   return lines.join("\n");
 }

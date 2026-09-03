@@ -1,5 +1,5 @@
 export { formatDuration, parseDuration } from "./duration.js";
-export { analyzeSources, createContactSheetPlans, formatSourceAnalysis, parseCutCandidates } from "./analyze.js";
+export { analyzeAudio, analyzeSources, createContactSheetPlans, formatSourceAnalysis, parseCutCandidates, parseSilenceRegions, parseWebVtt } from "./analyze.js";
 export { checkBuild, formatBuildReport } from "./check.js";
 export { createCaptionPlan, writeCaptions } from "./captions.js";
 export { inspectMedia, inspectProjectMedia } from "./inspect.js";
@@ -10,7 +10,7 @@ export { compileTimeline } from "./timeline.js";
 export { createRenderPlan, renderPreview } from "./render.js";
 export { initializeProject } from "./scaffold.js";
 export type { BuildReport, CheckResult } from "./check.js";
-export type { ContactSheetPlan, CutCandidate, SourceAnalysisReport } from "./analyze.js";
+export type { AudioAnalysis, ContactSheetPlan, CutCandidate, SilenceRegion, SourceAnalysisReport, TranscriptAnalysis, TranscriptCue } from "./analyze.js";
 export type { CaptionCue, CaptionPlan } from "./captions.js";
 export type { MediaInspection } from "./inspect.js";
 export type { LoadedProject, ProjectManifest, ProjectScene } from "./manifest.js";
