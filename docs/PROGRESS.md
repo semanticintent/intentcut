@@ -4,8 +4,8 @@ Last updated: 2026-09-03
 
 ## Current position
 
-**Phase:** Milestone 6 — capture workflow
-**Status:** Milestone 6 complete · governed capture and ingestion verified
+**Phase:** Milestone 7 — bounded agent interface
+**Status:** In progress · read-only agent context and authority contract verified
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -156,7 +156,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 - [x] Designed annotations, captions, and camera movement.
 - [x] Contact sheets, transcription, and assisted cut detection.
 - [x] Capture workflow and optional OBS adapter.
-- [ ] Bounded agent interface.
+- [~] Bounded agent interface.
 - [ ] Explicit human approval and release workflow.
 
 ## Milestone 5 — Assisted source inspection
@@ -377,6 +377,37 @@ Force or move mode     not available
 Automated suite        44 tests across 13 files · PASS
 ```
 
+## Milestone 7 — Bounded agent interface
+
+- [x] Define a provider-neutral agent context envelope.
+- [x] Derive a stable semantic revision from the validated manifest.
+- [x] Expose project target, scene topology, capture coverage, and narration identities.
+- [x] Exclude absolute manifest and workstation paths.
+- [x] Declare every read, proposal, execution, and consequential capability.
+- [x] Keep manifest writes, rendering, recording, and ingestion unavailable.
+- [x] Keep approval and publication human-only.
+- [ ] Define revision-bound declarative edit proposals.
+- [ ] Validate proposal operations without applying them.
+- [ ] Add an optional protocol adapter over the same authority boundary.
+
+## Milestone 7A verified result
+
+`intentcut agent-context` now emits deterministic JSON derived only from the
+validated manifest. The context gives an agent enough structure to understand
+the production without granting execution authority or leaking the absolute
+manifest path. A SHA-256 semantic revision creates the future conflict boundary
+for proposals.
+
+```text
+Envelope               intentcut-agent-context · version 1
+Revision               sha256 of validated semantic manifest
+Available              project.read · capture.topology.read
+Unavailable            edit proposal · render · record · ingest
+Human-only             approve · publish
+Filesystem writes      none
+Automated suite        48 tests across 14 files · PASS
+```
+
 ## Decision log
 
 ### 2026-09-03 — Product shape
@@ -557,3 +588,10 @@ Capture completion does not grant permission to place media into the project.
 Ingestion consumes the returned receipt only when separately invoked, validates
 it against the manifest, and copies rather than moves. Existing project media
 is an absolute boundary: IntentCut exposes no force flag and never replaces it.
+
+### 2026-09-03 — Agent context is not agent authority
+
+The first agent-facing surface is read-only, provider-neutral JSON. It exposes
+validated semantic topology and a revision fingerprint while enumerating every
+withheld capability. Future adapters must wrap this contract rather than gain a
+parallel path to rendering, recording, ingestion, approval, or publication.

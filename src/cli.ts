@@ -14,6 +14,7 @@ import { createFirstCutProposal, formatFirstCutProposal, writeFirstCutProposal }
 import { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./brief.js";
 import { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
 import { ingestCapturedRecording, loadRecordingReceipt } from "./ingest.js";
+import { createAgentProjectContext } from "./agent.js";
 
 function usage(): string {
   return [
@@ -24,6 +25,7 @@ function usage(): string {
     "  intentcut validate <manifest>",
     "  intentcut brief <manifest>",
     "  intentcut capture-status <manifest>",
+    "  intentcut agent-context <manifest>",
     "  intentcut ingest <manifest> <receipt.json>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
@@ -39,7 +41,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -61,6 +63,11 @@ async function main(): Promise<void> {
   }
 
   const project = await loadProject(manifestPath);
+
+  if (command === "agent-context") {
+    console.log(JSON.stringify(createAgentProjectContext(project), null, 2));
+    return;
+  }
 
   if (command === "validate") {
     console.log(`PASS  ${project.manifest.project.title}`);

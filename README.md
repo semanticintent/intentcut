@@ -14,7 +14,7 @@ Read the complete [concept](./CONCEPT.md).
 
 ## Status
 
-Milestone 5 is complete. IntentCut validates YAML manifests, inspects media,
+Milestone 7 is in progress. IntentCut validates YAML manifests, inspects media,
 resolves an exact timeline, compiles it through FFmpeg, and validates the
 rendered artifact with JSON and Markdown reports. Its visual grammar now
 includes timed annotations, portable WebVTT captions, and bounded camera moves.
@@ -22,6 +22,11 @@ Source analysis produces contact sheets, visual and silence signals, transcript
 metadata, and an editable first-cut proposal without modifying the production.
 Capture briefs can be generated before recordings exist, preserving the human
 performance as a precise, repeatable production step.
+
+The first bounded agent surface is now available as deterministic JSON. It
+exposes project topology and a semantic revision fingerprint while explicitly
+withholding manifest writes, process execution, recording, ingestion, approval,
+and publication authority.
 
 The first proving experiment successfully reconstructed the completed
 Orbweaver WebMCP Challenge sequence from a declarative manifest and its existing
@@ -34,6 +39,7 @@ npm install
 npm run dev -- validate examples/orbweaver/intentcut.yaml
 npm run dev -- brief examples/orbweaver/intentcut.yaml
 npm run dev -- capture-status examples/orbweaver/intentcut.yaml
+npm run dev -- agent-context examples/orbweaver/intentcut.yaml
 npm run dev -- ingest examples/my-video/intentcut.yaml ./take-workspace.json
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
@@ -180,6 +186,13 @@ absolute captured-media path, and copies with exclusive-create semantics. It
 never overwrites an existing project source and leaves the original OBS file
 untouched. There is intentionally no `--force` or move mode. See
 [OBS integration](./docs/OBS.md).
+
+`intentcut agent-context` emits a provider-neutral, read-only JSON envelope for
+agent workflows. It includes the validated project target, declared scene
+topology, capture coverage, narration-section identities, and a SHA-256 semantic
+revision. The same envelope declares every unavailable or human-only capability;
+it does not execute media tools or write reports. See
+[bounded agent interface](./docs/AGENTS.md).
 
 Create a narration-ready production workspace with:
 
