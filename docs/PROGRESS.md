@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 7 — bounded agent interface
-**Status:** In progress · revision-bound edit proposals verified; protocol adapter remains
+**Status:** Milestone 7 complete · provider-neutral contract and MCP adapter verified
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -156,7 +156,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 - [x] Designed annotations, captions, and camera movement.
 - [x] Contact sheets, transcription, and assisted cut detection.
 - [x] Capture workflow and optional OBS adapter.
-- [~] Bounded agent interface.
+- [x] Bounded agent interface.
 - [ ] Explicit human approval and release workflow.
 
 ## Milestone 5 — Assisted source inspection
@@ -388,7 +388,7 @@ Automated suite        44 tests across 13 files · PASS
 - [x] Keep approval and publication human-only.
 - [x] Define revision-bound declarative edit proposals.
 - [x] Validate proposal operations without applying them.
-- [ ] Add an optional protocol adapter over the same authority boundary.
+- [x] Add an optional protocol adapter over the same authority boundary.
 
 ## Milestone 7A verified result
 
@@ -426,6 +426,25 @@ Undeclared fields      rejected
 Authority              proposed-only → validation-only · never applied
 Manifest writes        none
 Automated suite        54 tests across 15 files · PASS
+```
+
+## Milestone 7C verified result
+
+The optional MCP v2 stdio adapter wraps the existing project-context and
+proposal-validation functions without adding business logic or authority. It
+loads one validated project at startup and registers exactly two tools. Neither
+tool executes processes or writes files, and no network listener is opened.
+
+```text
+Transport              MCP v2 · local stdio
+Tools                  2
+Project context        read-only · deterministic
+Proposal validation    read-only · validation-only
+Tool annotations       read-only · idempotent · non-destructive · closed-world
+Additional authority   none
+Protocol test          initialize · tools/list · both tools/call · PASS
+Dependency audit       71 packages · 0 vulnerabilities
+Automated suite        57 tests across 16 files · PASS
 ```
 
 ## Decision log
@@ -622,3 +641,9 @@ The agent edit vocabulary is intentionally incomplete. It describes bounded
 editorial intent but contains no operation for media-source replacement,
 process execution, capture, ingestion, approval, or publication. A matching
 revision earns validation, not application.
+
+### 2026-09-03 — Protocol adapters inherit, never expand, authority
+
+The MCP server is a transport over existing functions, not a second application
+surface. Its two tools are read-only and closed-world. Adding a protocol does
+not add permission to render, record, ingest, approve, or publish.

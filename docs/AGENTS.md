@@ -31,8 +31,8 @@ in the same project-relative form declared by the creator.
 Rendering, recording control, and media ingestion are not exposed. Approval and
 publication remain human-only.
 
-This surface is provider-neutral. A future MCP or agent adapter should wrap the
-same contract rather than introducing a privileged execution path.
+The core surface is provider-neutral. The MCP adapter below wraps the same
+contract rather than introducing a privileged execution path.
 
 ## Revision-bound edit proposals
 
@@ -81,7 +81,50 @@ The vocabulary cannot express source paths, output configuration, capture
 settings, ingestion, rendering, approval, or publication. There is no command
 that applies an edit proposal.
 
+## MCP stdio adapter
+
+Start the optional local server with one project manifest:
+
+```bash
+npm run mcp -- /absolute/path/to/intentcut.yaml
+```
+
+Installed packages also expose:
+
+```bash
+intentcut-mcp /absolute/path/to/intentcut.yaml
+```
+
+An MCP host can launch the compiled server directly:
+
+```json
+{
+  "mcpServers": {
+    "intentcut": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/intentcut/dist/mcp-cli.js",
+        "/absolute/path/to/project/intentcut.yaml"
+      ]
+    }
+  }
+}
+```
+
+The stdio server exposes exactly two tools:
+
+- `intentcut_project_context`
+- `intentcut_validate_edit_proposal`
+
+Both carry MCP annotations declaring them read-only, idempotent,
+non-destructive, and closed-world. The server loads one validated manifest at
+startup, opens no network listener, uses stdout only for MCP JSON-RPC, and
+delegates directly to the provider-neutral context and validation functions.
+
+Official transport reference:
+<https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/serving/stdio.md>
+
 ## Next boundary
 
-Milestone 7C can add an optional protocol adapter over the same context and
-validation functions. It must not introduce an apply or release path.
+Milestone 8 can introduce explicit human approval and release records. The MCP
+adapter must remain outside that authority path.

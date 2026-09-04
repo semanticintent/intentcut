@@ -14,7 +14,7 @@ Read the complete [concept](./CONCEPT.md).
 
 ## Status
 
-Milestone 7 is in progress. IntentCut validates YAML manifests, inspects media,
+Milestone 7 is complete. IntentCut validates YAML manifests, inspects media,
 resolves an exact timeline, compiles it through FFmpeg, and validates the
 rendered artifact with JSON and Markdown reports. Its visual grammar now
 includes timed annotations, portable WebVTT captions, and bounded camera moves.
@@ -201,6 +201,17 @@ revision, operation identities, and semantic targets, then returns structured
 JSON. The bounded vocabulary covers trim, speed, camera focus, annotations, and
 narration scripts; it cannot express source replacement, rendering, capture,
 ingestion, approval, or publication. Validation never changes the manifest.
+
+The optional MCP stdio adapter wraps those same two functions:
+
+```bash
+npm run mcp -- /absolute/path/to/intentcut.yaml
+```
+
+It exposes only `intentcut_project_context` and
+`intentcut_validate_edit_proposal`. Both are declared read-only, idempotent,
+non-destructive, and closed-world. The adapter opens no network listener and
+adds no render, capture, ingestion, approval, or publication tool.
 
 Create a narration-ready production workspace with:
 

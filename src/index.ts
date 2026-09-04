@@ -1,6 +1,7 @@
 export { formatDuration, parseDuration } from "./duration.js";
 export { createAgentProjectContext } from "./agent.js";
 export { agentEditOperationSchema, agentEditProposalSchema, loadAgentEditProposal, validateAgentEditProposal } from "./edit-proposal.js";
+export { createIntentCutMcpServer, readProjectContextTool, validateEditProposalTool } from "./mcp.js";
 export { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./brief.js";
 export { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
 export { ObsCaptureAdapter } from "./obs.js";
