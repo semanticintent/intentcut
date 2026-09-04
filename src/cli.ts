@@ -16,7 +16,7 @@ import { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, write
 import { ingestCapturedRecording, loadRecordingReceipt } from "./ingest.js";
 import { createAgentProjectContext } from "./agent.js";
 import { loadAgentEditProposal, validateAgentEditProposal } from "./edit-proposal.js";
-import { approveReleaseCandidate, createReleaseCandidate, loadReleaseCandidate, releaseCandidateToken, writeReleaseApproval, writeReleaseCandidate } from "./release.js";
+import { approveReleaseCandidate, createReleaseCandidate, loadReleaseApproval, loadReleaseCandidate, releaseCandidateToken, sealApprovedRelease, writeReleaseApproval, writeReleaseCandidate } from "./release.js";
 
 function usage(): string {
   return [
@@ -31,6 +31,7 @@ function usage(): string {
     "  intentcut validate-proposal <manifest> <proposal.json>",
     "  intentcut candidate <manifest>",
     "  intentcut approve <manifest> <candidate.json> --by <name> --confirm <token>",
+    "  intentcut seal <manifest> <candidate.json> <approval.json>",
     "  intentcut ingest <manifest> <receipt.json>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
@@ -46,7 +47,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "validate-proposal", "candidate", "approve", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "validate-proposal", "candidate", "approve", "seal", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -98,6 +99,23 @@ async function main(): Promise<void> {
     console.log(`          ${approval.approvedBy} · ${approval.approvedAt}`);
     console.log(`          ${approval.candidateDigest}`);
     console.log(`          ${output}`);
+    return;
+  }
+
+  if (command === "seal") {
+    const candidatePath = process.argv[4];
+    const approvalPath = process.argv[5];
+    if (!candidatePath || !approvalPath) throw new Error("seal requires candidate and approval JSON files.");
+    const result = await sealApprovedRelease(
+      project,
+      await loadReleaseCandidate(candidatePath),
+      await loadReleaseApproval(approvalPath),
+    );
+    console.log(`SEALED  ${result.receipt.releaseId}`);
+    console.log(`        ${result.receipt.media.sha256} · ${result.receipt.media.bytes} bytes`);
+    console.log(`        ${result.artifact}`);
+    console.log(`RECEIPT ${result.receiptPath}`);
+    console.log("PUBLISH not performed");
     return;
   }
 

@@ -43,6 +43,7 @@ npm run dev -- agent-context examples/orbweaver/intentcut.yaml
 npm run dev -- validate-proposal examples/orbweaver/intentcut.yaml ./edit-proposal.json
 npm run dev -- candidate examples/orbweaver/intentcut.yaml
 npm run dev -- approve examples/orbweaver/intentcut.yaml ./release-candidate.json --by "Your Name" --confirm <token>
+npm run dev -- seal examples/orbweaver/intentcut.yaml ./release-candidate.json ./release-approval.json
 npm run dev -- ingest examples/my-video/intentcut.yaml ./take-workspace.json
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
@@ -221,7 +222,12 @@ manifest revision, and prints a short confirmation token. `approve` requires
 the candidate file, an approver name, and that exact token. It re-hashes both
 intent and media before writing an immutable approval record. Changed intent,
 changed media, failed QA, preview-mode validation, or an existing approval all
-fail closed. Approval does not publish anything. See
+fail closed. Approval does not publish anything. `seal` then revalidates that
+exact approval, intent revision, and media identity before copying the video
+into an exclusive, content-addressed local release bundle. Its immutable
+receipt records the human approval and explicitly states `published: false`;
+rerunning the same release cannot overwrite the bundle. No command connects to
+a publishing service. See
 [release authority](./docs/RELEASE.md).
 
 Create a narration-ready production workspace with:

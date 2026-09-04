@@ -1,8 +1,7 @@
 # IntentCut release authority
 
-IntentCut separates rendering, candidate identity, human approval, and release.
-Milestone 8A implements the first three states but does not publish or release
-media.
+IntentCut separates rendering, candidate identity, human approval, local
+release, and external publication. None of these states implies the next.
 
 ## 1. Render and validate in final mode
 
@@ -49,10 +48,37 @@ recorded in `release-approval.json` with authority state `human-approved` and
 The approval record is created exclusively. IntentCut refuses to overwrite an
 existing human approval.
 
+## 4. Seal the approved artifact locally
+
+```bash
+intentcut seal intentcut.yaml reports/release-candidate.json \
+  reports/release-approval.json
+```
+
+Before writing anything, `seal` validates that the approval names the exact
+candidate and that the current project revision, output path, media SHA-256,
+and byte size remain unchanged. It then creates an exclusive bundle at:
+
+```text
+releases/release-<candidate-token>/
+  final.mp4
+  release-receipt.json
+```
+
+The artifact is copied rather than moved, preserving the approved source. The
+copy is hashed again before the receipt is written. The receipt binds the
+candidate digest, approval digest, semantic revision, artifact identity,
+approver, approval time, and sealing time. It records `released: true` and
+`published: false`.
+
+The release directory and receipt are never overwritten. External publication
+remains separate future work requiring its own explicit authorization.
+
 ## Authority boundary
 
 - `render --final` produces validated media, not a release.
 - `candidate` identifies one exact validated artifact, but does not approve it.
 - `approve` records a human decision, but does not publish or copy media.
-- MCP exposes neither candidate creation nor approval.
-- Milestone 8A contains no release or publication command.
+- `seal` creates a local release bundle from a still-current approval.
+- MCP exposes no candidate, approval, release, or publication operation.
+- No release command connects to an external publishing service.

@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 8 — human approval and release
-**Status:** In progress · exact candidate identity and human approval implemented
+**Status:** In progress · local release sealing implemented; publication remains absent
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -456,8 +456,8 @@ Automated suite        57 tests across 16 files · PASS
 - [x] Revalidate manifest revision, media hash, byte size, project, and output at approval time.
 - [x] Refuse to overwrite an existing human approval record.
 - [x] Keep candidate creation and approval outside MCP.
-- [ ] Create a release artifact only from a current human approval.
-- [ ] Preserve an immutable release receipt without publishing externally.
+- [x] Create a release artifact only from a current human approval.
+- [x] Preserve an immutable release receipt without publishing externally.
 - [ ] Add optional publication adapters as separately authorized future work.
 
 ## Milestone 8A verified result
@@ -480,6 +480,25 @@ Existing approval      preserved · overwrite refused
 MCP authority          none
 Release/publication    not implemented
 Automated suite        63 tests across 17 files · PASS
+```
+
+## Milestone 8B verified result
+
+`intentcut seal` now turns a still-current human approval into a local,
+content-addressed release bundle. Before copying, it verifies that the approval
+names the exact candidate and that the project revision, output path, media
+SHA-256, and byte size remain unchanged. The copied artifact is hashed again
+before an immutable receipt is written beside it.
+
+```text
+Input authority        exact current human approval
+Release identity       release-<candidate-token>
+Artifact handling      copy · source preserved · copied bytes reverified
+Receipt binding        candidate + approval + manifest + media + human
+Existing bundle        preserved · overwrite refused
+Publication            absent · published: false
+MCP authority          none
+Automated suite        68 tests across 17 files · PASS
 ```
 
 ## Decision log
@@ -694,3 +713,10 @@ candidate. These states remain separate, and none implies publication.
 Approval requires the token derived from the complete candidate record and
 recomputes both manifest and media identity. A creator cannot accidentally
 approve a file or project state that changed after review.
+
+### 2026-09-03 — Release is local sealing, not publication
+
+A release copies exact approved media into a content-addressed local bundle and
+records its provenance in an immutable receipt. It performs no network request,
+does not mutate the approved source, and explicitly records that publication
+has not occurred.

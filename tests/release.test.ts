@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { BuildReport } from "../src/check.js";
 import type { LoadedProject } from "../src/manifest.js";
-import { approveReleaseCandidate, createReleaseCandidate, releaseCandidateToken, writeReleaseApproval } from "../src/release.js";
+import { approveReleaseCandidate, createReleaseCandidate, releaseCandidateToken, sealApprovedRelease, writeReleaseApproval } from "../src/release.js";
 
 function project(baseDirectory: string, title = "Release"): LoadedProject {
   return {
@@ -87,5 +87,55 @@ describe("human release approval", () => {
     await expect(writeReleaseApproval(current, approval)).rejects.toMatchObject({ code: "EEXIST" });
     expect(JSON.parse(await readFile(output, "utf8"))).toMatchObject({ approvedBy: "Michael" });
     expect(output).toBe(path.join(directory, "reports/release-approval.json"));
+  });
+});
+
+describe("sealed release bundles", () => {
+  it("copies exact approved media into a content-addressed bundle with an immutable receipt", async () => {
+    const { directory, project: current } = await fixture();
+    const candidate = await createReleaseCandidate(current, report(current));
+    const approval = await approveReleaseCandidate(current, candidate, "Michael Shatny", releaseCandidateToken(candidate), new Date("2026-09-03T20:00:00.000Z"));
+    const result = await sealApprovedRelease(current, candidate, approval, new Date("2026-09-03T21:00:00.000Z"));
+    expect(result.receipt).toMatchObject({
+      releaseId: `release-${releaseCandidateToken(candidate)}`,
+      approval: { approvedBy: "Michael Shatny", approvedAt: "2026-09-03T20:00:00.000Z" },
+      sealedAt: "2026-09-03T21:00:00.000Z",
+      authority: { state: "released", approved: true, released: true, published: false },
+    });
+    expect(await readFile(result.artifact, "utf8")).toBe("approved media candidate");
+    expect(JSON.parse(await readFile(result.receiptPath, "utf8"))).toEqual(result.receipt);
+    expect(result.directory).toBe(path.join(directory, "releases", result.receipt.releaseId));
+  });
+
+  it("rejects an approval for a different candidate", async () => {
+    const { project: current } = await fixture();
+    const candidate = await createReleaseCandidate(current, report(current));
+    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    const changedCandidate = { ...candidate, validation: { ...candidate.validation, report: "reports/other.json" } };
+    await expect(sealApprovedRelease(current, changedCandidate, approval)).rejects.toThrow("exact candidate");
+  });
+
+  it("rejects changed media after approval", async () => {
+    const { directory, project: current } = await fixture();
+    const candidate = await createReleaseCandidate(current, report(current));
+    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    await writeFile(path.join(directory, current.manifest.output.file), "changed after approval");
+    await expect(sealApprovedRelease(current, candidate, approval)).rejects.toThrow("media changed");
+  });
+
+  it("rejects changed project intent after approval", async () => {
+    const { directory, project: current } = await fixture();
+    const candidate = await createReleaseCandidate(current, report(current));
+    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    await expect(sealApprovedRelease(project(directory, "Changed"), candidate, approval)).rejects.toThrow("intent changed");
+  });
+
+  it("refuses to replace an existing release bundle", async () => {
+    const { project: current } = await fixture();
+    const candidate = await createReleaseCandidate(current, report(current));
+    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    const first = await sealApprovedRelease(current, candidate, approval);
+    await expect(sealApprovedRelease(current, candidate, approval)).rejects.toMatchObject({ code: "EEXIST" });
+    expect(JSON.parse(await readFile(first.receiptPath, "utf8"))).toEqual(first.receipt);
   });
 });

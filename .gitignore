@@ -10,8 +10,10 @@ narration/*.aiff
 narration/*.mp3
 renders/
 reports/
+releases/
 examples/**/renders/
 examples/**/reports/
+examples/**/releases/
 examples/**/narration/generated/
 
 # Environment and temporary files

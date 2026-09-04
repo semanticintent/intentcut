@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { constants, createReadStream } from "node:fs";
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { createAgentProjectContext } from "./agent.js";
@@ -25,8 +25,19 @@ export const releaseApprovalSchema = z.object({
   authority: z.object({ state: z.literal("human-approved"), approved: z.literal(true), released: z.literal(false) }).strict(),
 }).strict();
 
+export const releaseReceiptSchema = z.object({
+  kind: z.literal("intentcut-release-receipt"), version: z.literal(1), releaseId: z.string().regex(/^release-[a-f0-9]{12}$/),
+  project: z.string().min(1), candidateDigest: digest, approvalDigest: digest,
+  manifestRevision: digest,
+  media: z.object({ source: z.string().min(1), artifact: z.string().min(1), sha256: digest, bytes: z.number().int().nonnegative() }).strict(),
+  approval: z.object({ approvedBy: z.string().min(1), approvedAt: z.string().datetime() }).strict(),
+  sealedAt: z.string().datetime(),
+  authority: z.object({ state: z.literal("released"), approved: z.literal(true), released: z.literal(true), published: z.literal(false) }).strict(),
+}).strict();
+
 export type ReleaseCandidate = z.infer<typeof releaseCandidateSchema>;
 export type ReleaseApproval = z.infer<typeof releaseApprovalSchema>;
+export type ReleaseReceipt = z.infer<typeof releaseReceiptSchema>;
 
 async function sha256File(filePath: string): Promise<string> {
   const hash = createHash("sha256");
@@ -46,6 +57,11 @@ export function releaseCandidateDigest(candidate: ReleaseCandidate): string {
 
 export function releaseCandidateToken(candidate: ReleaseCandidate): string {
   return releaseCandidateDigest(candidate).slice("sha256:".length, "sha256:".length + 12);
+}
+
+export function releaseApprovalDigest(approval: ReleaseApproval): string {
+  const validated = releaseApprovalSchema.parse(approval);
+  return `sha256:${createHash("sha256").update(JSON.stringify(validated)).digest("hex")}`;
 }
 
 export async function createReleaseCandidate(project: LoadedProject, report: BuildReport): Promise<ReleaseCandidate> {
@@ -75,6 +91,10 @@ export async function writeReleaseCandidate(project: LoadedProject, candidate: R
 
 export async function loadReleaseCandidate(candidatePath: string): Promise<ReleaseCandidate> {
   return releaseCandidateSchema.parse(JSON.parse(await readFile(path.resolve(candidatePath), "utf8")) as unknown);
+}
+
+export async function loadReleaseApproval(approvalPath: string): Promise<ReleaseApproval> {
+  return releaseApprovalSchema.parse(JSON.parse(await readFile(path.resolve(approvalPath), "utf8")) as unknown);
 }
 
 export async function approveReleaseCandidate(
@@ -112,4 +132,65 @@ export async function writeReleaseApproval(project: LoadedProject, approval: Rel
   const output = path.join(reportDirectory, "release-approval.json");
   await writeFile(output, `${JSON.stringify(validated, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   return output;
+}
+
+export async function sealApprovedRelease(
+  project: LoadedProject,
+  candidate: ReleaseCandidate,
+  approval: ReleaseApproval,
+  now = new Date(),
+): Promise<{ receipt: ReleaseReceipt; directory: string; artifact: string; receiptPath: string }> {
+  const validatedCandidate = releaseCandidateSchema.parse(candidate);
+  const validatedApproval = releaseApprovalSchema.parse(approval);
+  const candidateDigest = releaseCandidateDigest(validatedCandidate);
+  if (validatedApproval.candidateDigest !== candidateDigest) throw new Error("Release blocked: approval does not name this exact candidate.");
+  if (validatedApproval.project !== validatedCandidate.project) throw new Error("Release blocked: approval project does not match the candidate.");
+  if (validatedApproval.manifestRevision !== validatedCandidate.manifestRevision) throw new Error("Release blocked: approval manifest revision does not match the candidate.");
+  if (validatedApproval.mediaSha256 !== validatedCandidate.media.sha256) throw new Error("Release blocked: approval media does not match the candidate.");
+
+  const currentRevision = createAgentProjectContext(project).project.revision;
+  if (currentRevision !== validatedCandidate.manifestRevision) throw new Error("Release blocked: project intent changed after approval.");
+  if (project.manifest.project.title !== validatedCandidate.project) throw new Error("Release blocked: project does not match the approved candidate.");
+  if (project.manifest.output.file !== validatedCandidate.media.source) throw new Error("Release blocked: output does not match the approved candidate.");
+
+  const source = resolveProjectPath(project, project.manifest.output.file);
+  const sourceStat = await stat(source);
+  const sourceSha256 = await sha256File(source);
+  if (!sourceStat.isFile() || sourceStat.size !== validatedCandidate.media.bytes || sourceSha256 !== validatedCandidate.media.sha256) {
+    throw new Error("Release blocked: approved media changed before sealing.");
+  }
+
+  const releaseId = `release-${releaseCandidateToken(validatedCandidate)}`;
+  const releasesDirectory = path.join(project.baseDirectory, "releases");
+  const directory = path.join(releasesDirectory, releaseId);
+  const artifact = path.join(directory, path.basename(validatedCandidate.media.source));
+  const receiptPath = path.join(directory, "release-receipt.json");
+  await mkdir(releasesDirectory, { recursive: true });
+  await mkdir(directory);
+  try {
+    await copyFile(source, artifact, constants.COPYFILE_EXCL);
+    const artifactStat = await stat(artifact);
+    const artifactSha256 = await sha256File(artifact);
+    if (artifactStat.size !== validatedCandidate.media.bytes || artifactSha256 !== validatedCandidate.media.sha256) {
+      throw new Error("Release blocked: sealed artifact failed identity verification.");
+    }
+    const receipt = releaseReceiptSchema.parse({
+      kind: "intentcut-release-receipt", version: 1, releaseId, project: validatedCandidate.project,
+      candidateDigest, approvalDigest: releaseApprovalDigest(validatedApproval), manifestRevision: validatedCandidate.manifestRevision,
+      media: {
+        source: validatedCandidate.media.source,
+        artifact: path.relative(project.baseDirectory, artifact),
+        sha256: artifactSha256,
+        bytes: artifactStat.size,
+      },
+      approval: { approvedBy: validatedApproval.approvedBy, approvedAt: validatedApproval.approvedAt },
+      sealedAt: now.toISOString(),
+      authority: { state: "released", approved: true, released: true, published: false },
+    });
+    await writeFile(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    return { receipt, directory, artifact, receiptPath };
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true });
+    throw error;
+  }
 }
