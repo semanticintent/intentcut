@@ -14,7 +14,7 @@ Read the complete [concept](./CONCEPT.md).
 
 ## Status
 
-Milestone 8 is in progress. IntentCut validates YAML manifests, inspects media,
+Milestone 8 is complete. IntentCut validates YAML manifests, inspects media,
 resolves an exact timeline, compiles it through FFmpeg, and validates the
 rendered artifact with JSON and Markdown reports. Its visual grammar now
 includes timed annotations, portable WebVTT captions, and bounded camera moves.
@@ -44,6 +44,8 @@ npm run dev -- validate-proposal examples/orbweaver/intentcut.yaml ./edit-propos
 npm run dev -- candidate examples/orbweaver/intentcut.yaml
 npm run dev -- approve examples/orbweaver/intentcut.yaml ./release-candidate.json --by "Your Name" --confirm <token>
 npm run dev -- seal examples/orbweaver/intentcut.yaml ./release-candidate.json ./release-approval.json
+npm run dev -- authorize-publication examples/orbweaver/intentcut.yaml ./release-receipt.json --adapter directory --to ./delivery --by "Your Name" --confirm <release-id>
+npm run dev -- publish examples/orbweaver/intentcut.yaml ./release-receipt.json ./publication-intent-directory.json
 npm run dev -- ingest examples/my-video/intentcut.yaml ./take-workspace.json
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
@@ -226,8 +228,15 @@ fail closed. Approval does not publish anything. `seal` then revalidates that
 exact approval, intent revision, and media identity before copying the video
 into an exclusive, content-addressed local release bundle. Its immutable
 receipt records the human approval and explicitly states `published: false`;
-rerunning the same release cannot overwrite the bundle. No command connects to
-a publishing service. See
+rerunning the same release cannot overwrite the bundle.
+
+Publication is a second human-only ceremony. `authorize-publication` binds a
+named person, exact sealed-release receipt, adapter, and target in an immutable
+intent record. Only then can `publish` invoke the bounded directory adapter,
+which copies the artifact exclusively and writes a completion receipt. This
+reference adapter performs no network request and makes no claim that a target
+is publicly visible; future service adapters must inherit the same contract.
+Neither operation is exposed through MCP. See
 [release authority](./docs/RELEASE.md).
 
 Create a narration-ready production workspace with:

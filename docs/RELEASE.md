@@ -71,8 +71,43 @@ candidate digest, approval digest, semantic revision, artifact identity,
 approver, approval time, and sealing time. It records `released: true` and
 `published: false`.
 
-The release directory and receipt are never overwritten. External publication
-remains separate future work requiring its own explicit authorization.
+The release directory and receipt are never overwritten. Publication remains a
+separate step requiring its own persisted human authorization.
+
+## 5. Authorize one publication target
+
+```bash
+intentcut authorize-publication intentcut.yaml \
+  releases/release-<token>/release-receipt.json \
+  --adapter directory \
+  --to ./delivery \
+  --by "Your Name" \
+  --confirm release-<token>
+```
+
+This command performs no publication. It verifies the sealed artifact, requires
+the exact release id, and writes `publication-intent-directory.json` inside the
+release bundle. The immutable intent binds a named human, the complete release
+receipt digest, adapter, and absolute target.
+
+## 6. Execute only the authorized intent
+
+```bash
+intentcut publish intentcut.yaml \
+  releases/release-<token>/release-receipt.json \
+  releases/release-<token>/publication-intent-directory.json
+```
+
+The initial `directory` adapter is a bounded reference implementation. It
+copies the sealed artifact into `<target>/<release-id>/`, verifies the copied
+SHA-256 and byte size, then writes an immutable publication receipt inside the
+source release bundle. It refuses an existing target or completion receipt.
+
+This adapter performs no network request and does not assert that the selected
+directory is publicly visible. It can target an explicit delivery or synced
+folder; any resulting exposure is determined by that folder. API-backed
+adapters remain future implementations and must use the same prior-intent and
+completion-receipt boundary.
 
 ## Authority boundary
 
@@ -80,5 +115,7 @@ remains separate future work requiring its own explicit authorization.
 - `candidate` identifies one exact validated artifact, but does not approve it.
 - `approve` records a human decision, but does not publish or copy media.
 - `seal` creates a local release bundle from a still-current approval.
+- `authorize-publication` records exact human intent but performs no delivery.
+- `publish` can execute only that bound release, adapter, and target.
 - MCP exposes no candidate, approval, release, or publication operation.
-- No release command connects to an external publishing service.
+- The reference publication adapter performs no network request.

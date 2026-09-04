@@ -124,7 +124,9 @@ delegates directly to the provider-neutral context and validation functions.
 Official transport reference:
 <https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/serving/stdio.md>
 
-## Next boundary
+## Consequential boundary
 
-Milestone 8 can introduce explicit human approval and release records. The MCP
-adapter must remain outside that authority path.
+Milestone 8 implements explicit human approval, local release, publication
+authorization, and publication receipts through separate CLI ceremonies. The
+MCP adapter remains outside that authority path and exposes none of those
+operations.

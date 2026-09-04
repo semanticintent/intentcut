@@ -64,6 +64,11 @@ export function releaseApprovalDigest(approval: ReleaseApproval): string {
   return `sha256:${createHash("sha256").update(JSON.stringify(validated)).digest("hex")}`;
 }
 
+export function releaseReceiptDigest(receipt: ReleaseReceipt): string {
+  const validated = releaseReceiptSchema.parse(receipt);
+  return `sha256:${createHash("sha256").update(JSON.stringify(validated)).digest("hex")}`;
+}
+
 export async function createReleaseCandidate(project: LoadedProject, report: BuildReport): Promise<ReleaseCandidate> {
   if (!report.passed) throw new Error("Release candidate blocked: the current build report failed.");
   if (report.mode !== "final") throw new Error("Release candidate blocked: run validation in final mode.");
@@ -95,6 +100,10 @@ export async function loadReleaseCandidate(candidatePath: string): Promise<Relea
 
 export async function loadReleaseApproval(approvalPath: string): Promise<ReleaseApproval> {
   return releaseApprovalSchema.parse(JSON.parse(await readFile(path.resolve(approvalPath), "utf8")) as unknown);
+}
+
+export async function loadReleaseReceipt(receiptPath: string): Promise<ReleaseReceipt> {
+  return releaseReceiptSchema.parse(JSON.parse(await readFile(path.resolve(receiptPath), "utf8")) as unknown);
 }
 
 export async function approveReleaseCandidate(

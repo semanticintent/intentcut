@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 8 — human approval and release
-**Status:** In progress · local release sealing implemented; publication remains absent
+**Status:** Complete · publication requires separately persisted human intent
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -157,7 +157,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 - [x] Contact sheets, transcription, and assisted cut detection.
 - [x] Capture workflow and optional OBS adapter.
 - [x] Bounded agent interface.
-- [~] Explicit human approval and release workflow.
+- [x] Explicit human approval and release workflow.
 
 ## Milestone 5 — Assisted source inspection
 
@@ -458,7 +458,7 @@ Automated suite        57 tests across 16 files · PASS
 - [x] Keep candidate creation and approval outside MCP.
 - [x] Create a release artifact only from a current human approval.
 - [x] Preserve an immutable release receipt without publishing externally.
-- [ ] Add optional publication adapters as separately authorized future work.
+- [x] Add an optional publication adapter behind separate human authorization.
 
 ## Milestone 8A verified result
 
@@ -499,6 +499,25 @@ Existing bundle        preserved · overwrite refused
 Publication            absent · published: false
 MCP authority          none
 Automated suite        68 tests across 17 files · PASS
+```
+
+## Milestone 8C verified result
+
+Publication now has its own persisted authority boundary. A named human first
+binds one exact sealed-release receipt to the `directory` adapter and one
+explicit target. That authorization does not execute the adapter. A separate
+`publish` command revalidates the intent and sealed artifact, performs an
+exclusive copy, verifies the delivered bytes, and records completion.
+
+```text
+Authorization          named human · exact release id · adapter · target
+Intent record          immutable · published: false
+Reference adapter      directory · copy-only · no network request
+Delivered artifact     SHA-256 and byte size reverified
+Completion receipt     immutable · published: true
+Existing target        preserved · overwrite refused
+MCP authority          none
+Automated suite        74 tests across 18 files · PASS
 ```
 
 ## Decision log
@@ -720,3 +739,10 @@ A release copies exact approved media into a content-addressed local bundle and
 records its provenance in an immutable receipt. It performs no network request,
 does not mutate the approved source, and explicitly records that publication
 has not occurred.
+
+### 2026-09-03 — Publication requires persisted intent before effect
+
+Selecting a release is not permission to deliver it. Publication authorization
+binds a human, exact release receipt, adapter, and target before any adapter can
+run. Completion is a second immutable record. The first adapter is deliberately
+local and copy-only; transport does not get to invent authority.

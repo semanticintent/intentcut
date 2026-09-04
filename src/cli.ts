@@ -17,6 +17,8 @@ import { ingestCapturedRecording, loadRecordingReceipt } from "./ingest.js";
 import { createAgentProjectContext } from "./agent.js";
 import { loadAgentEditProposal, validateAgentEditProposal } from "./edit-proposal.js";
 import { approveReleaseCandidate, createReleaseCandidate, loadReleaseApproval, loadReleaseCandidate, releaseCandidateToken, sealApprovedRelease, writeReleaseApproval, writeReleaseCandidate } from "./release.js";
+import { loadReleaseReceipt } from "./release.js";
+import { authorizePublication, DirectoryPublicationAdapter, loadPublicationIntent, publishAuthorizedRelease, writePublicationIntent } from "./publication.js";
 
 function usage(): string {
   return [
@@ -32,6 +34,8 @@ function usage(): string {
     "  intentcut candidate <manifest>",
     "  intentcut approve <manifest> <candidate.json> --by <name> --confirm <token>",
     "  intentcut seal <manifest> <candidate.json> <approval.json>",
+    "  intentcut authorize-publication <manifest> <release-receipt.json> --adapter directory --to <directory> --by <name> --confirm <release-id>",
+    "  intentcut publish <manifest> <release-receipt.json> <publication-intent.json>",
     "  intentcut ingest <manifest> <receipt.json>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
@@ -47,7 +51,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "validate-proposal", "candidate", "approve", "seal", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "validate-proposal", "candidate", "approve", "seal", "authorize-publication", "publish", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -116,6 +120,46 @@ async function main(): Promise<void> {
     console.log(`        ${result.artifact}`);
     console.log(`RECEIPT ${result.receiptPath}`);
     console.log("PUBLISH not performed");
+    return;
+  }
+
+  if (command === "authorize-publication") {
+    const receiptPath = process.argv[4];
+    const adapterIndex = process.argv.indexOf("--adapter");
+    const targetIndex = process.argv.indexOf("--to");
+    const byIndex = process.argv.indexOf("--by");
+    const confirmIndex = process.argv.indexOf("--confirm");
+    const adapter = adapterIndex >= 0 ? process.argv[adapterIndex + 1] : undefined;
+    const target = targetIndex >= 0 ? process.argv[targetIndex + 1] : undefined;
+    const authorizedBy = byIndex >= 0 ? process.argv[byIndex + 1] : undefined;
+    const confirmation = confirmIndex >= 0 ? process.argv[confirmIndex + 1] : undefined;
+    if (!receiptPath || adapter !== "directory" || !target || !authorizedBy || !confirmation) {
+      throw new Error("authorize-publication requires a release receipt, --adapter directory, --to <directory>, --by <name>, and --confirm <release-id>.");
+    }
+    const release = await loadReleaseReceipt(receiptPath);
+    const intent = await authorizePublication(project, release, target, authorizedBy, confirmation);
+    const output = await writePublicationIntent(project, release, intent);
+    console.log(`AUTHORIZED  ${intent.releaseId} → ${intent.adapter.id}`);
+    console.log(`            ${intent.adapter.target}`);
+    console.log(`            ${intent.authorizedBy} · ${intent.authorizedAt}`);
+    console.log(`INTENT      ${output}`);
+    console.log("PUBLISH     not yet performed");
+    return;
+  }
+
+  if (command === "publish") {
+    const receiptPath = process.argv[4];
+    const intentPath = process.argv[5];
+    if (!receiptPath || !intentPath) throw new Error("publish requires release receipt and publication intent JSON files.");
+    const result = await publishAuthorizedRelease(
+      project,
+      await loadReleaseReceipt(receiptPath),
+      await loadPublicationIntent(intentPath),
+      new DirectoryPublicationAdapter(),
+    );
+    console.log(`PUBLISHED  ${result.receipt.releaseId} → ${result.receipt.adapter.id}`);
+    console.log(`           ${result.receipt.adapter.location}`);
+    console.log(`RECEIPT    ${result.receiptPath}`);
     return;
   }
 
