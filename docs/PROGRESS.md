@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 7 — bounded agent interface
-**Status:** In progress · read-only agent context and authority contract verified
+**Status:** In progress · revision-bound edit proposals verified; protocol adapter remains
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -386,8 +386,8 @@ Automated suite        44 tests across 13 files · PASS
 - [x] Declare every read, proposal, execution, and consequential capability.
 - [x] Keep manifest writes, rendering, recording, and ingestion unavailable.
 - [x] Keep approval and publication human-only.
-- [ ] Define revision-bound declarative edit proposals.
-- [ ] Validate proposal operations without applying them.
+- [x] Define revision-bound declarative edit proposals.
+- [x] Validate proposal operations without applying them.
 - [ ] Add an optional protocol adapter over the same authority boundary.
 
 ## Milestone 7A verified result
@@ -406,6 +406,26 @@ Unavailable            edit proposal · render · record · ingest
 Human-only             approve · publish
 Filesystem writes      none
 Automated suite        48 tests across 14 files · PASS
+```
+
+## Milestone 7B verified result
+
+IntentCut now accepts strict, revision-bound edit proposals through its library
+API and `validate-proposal` CLI command. The operation grammar covers only
+declarative editorial changes and cannot represent process execution or release
+authority. Validation is semantic as well as structural and never writes the
+manifest.
+
+```text
+Proposal               intentcut-edit-proposal · version 1
+Conflict boundary      exact SHA-256 semantic revision
+Operations             trim · speed · camera · annotations · narration script
+Stale revision         rejected
+Unknown targets        rejected
+Undeclared fields      rejected
+Authority              proposed-only → validation-only · never applied
+Manifest writes        none
+Automated suite        54 tests across 15 files · PASS
 ```
 
 ## Decision log
@@ -595,3 +615,10 @@ The first agent-facing surface is read-only, provider-neutral JSON. It exposes
 validated semantic topology and a revision fingerprint while enumerating every
 withheld capability. Future adapters must wrap this contract rather than gain a
 parallel path to rendering, recording, ingestion, approval, or publication.
+
+### 2026-09-03 — Proposal grammar cannot express consequence
+
+The agent edit vocabulary is intentionally incomplete. It describes bounded
+editorial intent but contains no operation for media-source replacement,
+process execution, capture, ingestion, approval, or publication. A matching
+revision earns validation, not application.

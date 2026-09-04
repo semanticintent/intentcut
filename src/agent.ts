@@ -93,7 +93,7 @@ export function createAgentProjectContext(project: LoadedProject): AgentProjectC
     capabilities: [
       { name: "project.read", effect: "read", availability: "available", reason: "Returns validated declarative project context." },
       { name: "capture.topology.read", effect: "read", availability: "available", reason: "Returns which scenes have declared capture intent without connecting to capture software." },
-      { name: "edit.propose", effect: "propose", availability: "unavailable", reason: "A revision-bound proposal protocol is not yet enabled." },
+      { name: "edit.propose", effect: "propose", availability: "available", reason: "Creates revision-bound declarative proposals that require separate validation and cannot self-apply." },
       { name: "preview.render", effect: "execute", availability: "unavailable", reason: "This interface grants no process execution." },
       { name: "recording.control", effect: "execute", availability: "unavailable", reason: "OBS authority is not exposed to agents." },
       { name: "media.ingest", effect: "execute", availability: "unavailable", reason: "Ingestion requires a separate human-invoked command." },

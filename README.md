@@ -40,6 +40,7 @@ npm run dev -- validate examples/orbweaver/intentcut.yaml
 npm run dev -- brief examples/orbweaver/intentcut.yaml
 npm run dev -- capture-status examples/orbweaver/intentcut.yaml
 npm run dev -- agent-context examples/orbweaver/intentcut.yaml
+npm run dev -- validate-proposal examples/orbweaver/intentcut.yaml ./edit-proposal.json
 npm run dev -- ingest examples/my-video/intentcut.yaml ./take-workspace.json
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
@@ -193,6 +194,13 @@ topology, capture coverage, narration-section identities, and a SHA-256 semantic
 revision. The same envelope declares every unavailable or human-only capability;
 it does not execute media tools or write reports. See
 [bounded agent interface](./docs/AGENTS.md).
+
+An agent may now author a strict `intentcut-edit-proposal` containing the
+revision from that context. `intentcut validate-proposal` checks its shape,
+revision, operation identities, and semantic targets, then returns structured
+JSON. The bounded vocabulary covers trim, speed, camera focus, annotations, and
+narration scripts; it cannot express source replacement, rendering, capture,
+ingestion, approval, or publication. Validation never changes the manifest.
 
 Create a narration-ready production workspace with:
 

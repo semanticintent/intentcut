@@ -1,5 +1,6 @@
 export { formatDuration, parseDuration } from "./duration.js";
 export { createAgentProjectContext } from "./agent.js";
+export { agentEditOperationSchema, agentEditProposalSchema, loadAgentEditProposal, validateAgentEditProposal } from "./edit-proposal.js";
 export { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./brief.js";
 export { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
 export { ObsCaptureAdapter } from "./obs.js";
@@ -18,6 +19,7 @@ export { createRenderPlan, renderPreview } from "./render.js";
 export { initializeProject } from "./scaffold.js";
 export type { BuildReport, CheckResult } from "./check.js";
 export type { AgentCapability, AgentCapabilityAvailability, AgentCapabilityEffect, AgentProjectContext } from "./agent.js";
+export type { AgentEditOperation, AgentEditProposal, EditProposalIssue, EditProposalValidation } from "./edit-proposal.js";
 export type { CaptureBrief, CaptureTake } from "./brief.js";
 export type { CaptureEnvironmentStatus, CaptureProbeFacts } from "./capture-status.js";
 export type { ObsAdapterStatus, ObsConnectionOptions, ObsRecordingReceipt, ObsRequestResult, ObsTransport } from "./obs.js";

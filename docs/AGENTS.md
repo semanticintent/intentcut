@@ -27,16 +27,61 @@ in the same project-relative form declared by the creator.
 
 ## Authority
 
-Only `project.read` and `capture.topology.read` are available in Milestone 7A.
-Edit proposals are named but unavailable until they can be bound to the exact
-project revision. Rendering, recording control, and media ingestion are not
-exposed. Approval and publication remain human-only.
+`project.read`, `capture.topology.read`, and `edit.propose` are available.
+Rendering, recording control, and media ingestion are not exposed. Approval and
+publication remain human-only.
 
 This surface is provider-neutral. A future MCP or agent adapter should wrap the
 same contract rather than introducing a privileged execution path.
 
+## Revision-bound edit proposals
+
+An agent may construct a strict proposal using the revision returned by
+`agent-context`:
+
+```json
+{
+  "kind": "intentcut-edit-proposal",
+  "version": 1,
+  "expectedRevision": "sha256:<revision-from-agent-context>",
+  "summary": "Tighten the demonstration and focus the result.",
+  "operations": [
+    {
+      "id": "tighten-demo",
+      "operation": "scene.set-trim",
+      "sceneId": "demo",
+      "trim": { "in": "2s", "out": "18s" }
+    }
+  ],
+  "authority": { "state": "proposed-only", "applied": false }
+}
+```
+
+Validate it without applying it:
+
+```bash
+intentcut validate-proposal intentcut.yaml edit-proposal.json
+```
+
+The bounded operation vocabulary is:
+
+- `scene.set-trim`
+- `scene.set-speed`
+- `scene.set-camera` (a bounded camera move or `null` to remove it)
+- `annotation.upsert`
+- `annotation.remove`
+- `narration.set-script`
+
+The validator rejects stale revisions, duplicate operation ids, unknown or
+wrong-type targets, invalid timing, undeclared fields, and any authority state
+other than `proposed-only` / `applied: false`. Its own result declares
+`validation-only`, `applied: false`, and `manifestWritten: false`.
+
+The vocabulary cannot express source paths, output configuration, capture
+settings, ingestion, rendering, approval, or publication. There is no command
+that applies an edit proposal.
+
 ## Next boundary
 
-Milestone 7B will define a strict edit-proposal envelope containing the expected
-project revision and bounded declarative operations. Producing a proposal will
-not apply it.
+Milestone 7C can add an optional protocol adapter over the same context and
+validation functions. It must not introduce an apply or release path.

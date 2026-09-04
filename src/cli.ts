@@ -15,6 +15,7 @@ import { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./bri
 import { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
 import { ingestCapturedRecording, loadRecordingReceipt } from "./ingest.js";
 import { createAgentProjectContext } from "./agent.js";
+import { loadAgentEditProposal, validateAgentEditProposal } from "./edit-proposal.js";
 
 function usage(): string {
   return [
@@ -26,6 +27,7 @@ function usage(): string {
     "  intentcut brief <manifest>",
     "  intentcut capture-status <manifest>",
     "  intentcut agent-context <manifest>",
+    "  intentcut validate-proposal <manifest> <proposal.json>",
     "  intentcut ingest <manifest> <receipt.json>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
@@ -41,7 +43,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "validate-proposal", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -66,6 +68,15 @@ async function main(): Promise<void> {
 
   if (command === "agent-context") {
     console.log(JSON.stringify(createAgentProjectContext(project), null, 2));
+    return;
+  }
+
+  if (command === "validate-proposal") {
+    const proposalPath = process.argv[4];
+    if (!proposalPath) throw new Error("validate-proposal requires an edit proposal JSON file.");
+    const validation = validateAgentEditProposal(project, await loadAgentEditProposal(proposalPath));
+    console.log(JSON.stringify(validation, null, 2));
+    if (!validation.valid) process.exitCode = 2;
     return;
   }
 

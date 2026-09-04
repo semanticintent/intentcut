@@ -33,14 +33,15 @@ describe("bounded agent context", () => {
     expect(JSON.stringify(context)).not.toContain("/production");
   });
 
-  it("keeps every consequential or executable capability unavailable to the agent", () => {
+  it("allows proposals while keeping execution and consequence unavailable", () => {
     const context = createAgentProjectContext(project());
     expect(context.authority).toEqual({
       state: "read-only", manifestWrites: false, recordingControl: false,
       ingestionControl: false, renderingControl: false,
       approval: "human-only", release: "human-only",
     });
-    expect(context.capabilities.filter((capability) => capability.effect !== "read").every((capability) => capability.availability !== "available")).toBe(true);
+    expect(context.capabilities.find((capability) => capability.name === "edit.propose")?.availability).toBe("available");
+    expect(context.capabilities.filter((capability) => capability.effect === "execute" || capability.effect === "consequential").every((capability) => capability.availability !== "available")).toBe(true);
   });
 
   it("creates a stable revision for the same validated manifest", () => {
