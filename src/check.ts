@@ -20,6 +20,7 @@ export interface BuildReport {
   project: string;
   output: string;
   generatedAt: string;
+  mode: "preview" | "final";
   passed: boolean;
   checks: CheckResult[];
 }
@@ -171,6 +172,7 @@ export async function checkBuild(
     project: project.manifest.project.title,
     output: outputPath,
     generatedAt: new Date().toISOString(),
+    mode: final ? "final" : "preview",
     passed: checks.every((check) => check.passed),
     checks,
   };

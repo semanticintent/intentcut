@@ -16,6 +16,7 @@ import { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, write
 import { ingestCapturedRecording, loadRecordingReceipt } from "./ingest.js";
 import { createAgentProjectContext } from "./agent.js";
 import { loadAgentEditProposal, validateAgentEditProposal } from "./edit-proposal.js";
+import { approveReleaseCandidate, createReleaseCandidate, loadReleaseCandidate, releaseCandidateToken, writeReleaseApproval, writeReleaseCandidate } from "./release.js";
 
 function usage(): string {
   return [
@@ -28,6 +29,8 @@ function usage(): string {
     "  intentcut capture-status <manifest>",
     "  intentcut agent-context <manifest>",
     "  intentcut validate-proposal <manifest> <proposal.json>",
+    "  intentcut candidate <manifest>",
+    "  intentcut approve <manifest> <candidate.json> --by <name> --confirm <token>",
     "  intentcut ingest <manifest> <receipt.json>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
@@ -43,7 +46,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "validate-proposal", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "agent-context", "validate-proposal", "candidate", "approve", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -77,6 +80,24 @@ async function main(): Promise<void> {
     const validation = validateAgentEditProposal(project, await loadAgentEditProposal(proposalPath));
     console.log(JSON.stringify(validation, null, 2));
     if (!validation.valid) process.exitCode = 2;
+    return;
+  }
+
+  if (command === "approve") {
+    const candidatePath = process.argv[4];
+    const byIndex = process.argv.indexOf("--by");
+    const confirmIndex = process.argv.indexOf("--confirm");
+    const approvedBy = byIndex >= 0 ? process.argv[byIndex + 1] : undefined;
+    const confirmation = confirmIndex >= 0 ? process.argv[confirmIndex + 1] : undefined;
+    if (!candidatePath || !approvedBy || !confirmation) {
+      throw new Error("approve requires a candidate JSON file, --by <name>, and --confirm <token>.");
+    }
+    const approval = await approveReleaseCandidate(project, await loadReleaseCandidate(candidatePath), approvedBy, confirmation);
+    const output = await writeReleaseApproval(project, approval);
+    console.log(`APPROVED  ${approval.project}`);
+    console.log(`          ${approval.approvedBy} · ${approval.approvedAt}`);
+    console.log(`          ${approval.candidateDigest}`);
+    console.log(`          ${output}`);
     return;
   }
 
@@ -164,6 +185,21 @@ async function main(): Promise<void> {
     if (!narrationPlan) throw new Error("The project does not use sectioned narration.");
     console.log(formatNarrationPlan(narrationPlan));
     if (!narrationPlan.allFit) process.exitCode = 2;
+    return;
+  }
+
+  if (command === "candidate") {
+    const report = await checkBuild(project, timeline, narrationPlan, true, captionPlan);
+    console.log(formatBuildReport(report));
+    if (!report.passed) {
+      process.exitCode = 2;
+      return;
+    }
+    const candidate = await createReleaseCandidate(project, report);
+    const output = await writeReleaseCandidate(project, candidate);
+    console.log(`\nCANDIDATE  ${candidate.media.sha256} · ${candidate.media.bytes} bytes`);
+    console.log(`           ${output}`);
+    console.log(`APPROVE    --confirm ${releaseCandidateToken(candidate)}`);
     return;
   }
 

@@ -4,8 +4,8 @@ Last updated: 2026-09-03
 
 ## Current position
 
-**Phase:** Milestone 7 — bounded agent interface
-**Status:** Milestone 7 complete · provider-neutral contract and MCP adapter verified
+**Phase:** Milestone 8 — human approval and release
+**Status:** In progress · exact candidate identity and human approval implemented
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -157,7 +157,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 - [x] Contact sheets, transcription, and assisted cut detection.
 - [x] Capture workflow and optional OBS adapter.
 - [x] Bounded agent interface.
-- [ ] Explicit human approval and release workflow.
+- [~] Explicit human approval and release workflow.
 
 ## Milestone 5 — Assisted source inspection
 
@@ -447,6 +447,41 @@ Dependency audit       71 packages · 0 vulnerabilities
 Automated suite        57 tests across 16 files · PASS
 ```
 
+## Milestone 8 — Human approval and release
+
+- [x] Distinguish a final-mode render from an approved release candidate.
+- [x] Bind candidate identity to semantic manifest revision and media SHA-256.
+- [x] Require a fresh passing final-mode build report.
+- [x] Require a named human approver and exact candidate confirmation token.
+- [x] Revalidate manifest revision, media hash, byte size, project, and output at approval time.
+- [x] Refuse to overwrite an existing human approval record.
+- [x] Keep candidate creation and approval outside MCP.
+- [ ] Create a release artifact only from a current human approval.
+- [ ] Preserve an immutable release receipt without publishing externally.
+- [ ] Add optional publication adapters as separately authorized future work.
+
+## Milestone 8A verified result
+
+IntentCut now treats final rendering, release candidacy, and approval as three
+different states. `candidate` runs fresh final-mode validation and binds the
+semantic manifest revision to the rendered file's SHA-256 and byte size.
+`approve` requires a named person plus a 12-character token derived from that
+exact candidate and revalidates both intent and media before recording the
+decision.
+
+```text
+Candidate QA           fresh final-mode report required
+Intent identity        semantic manifest SHA-256
+Media identity         file SHA-256 · byte size · declared output
+Confirmation           exact candidate-derived token
+Approval identity      explicit human name · timestamp
+Stale intent/media     rejected
+Existing approval      preserved · overwrite refused
+MCP authority          none
+Release/publication    not implemented
+Automated suite        63 tests across 17 files · PASS
+```
+
 ## Decision log
 
 ### 2026-09-03 — Product shape
@@ -647,3 +682,15 @@ revision earns validation, not application.
 The MCP server is a transport over existing functions, not a second application
 surface. Its two tools are read-only and closed-world. Adding a protocol does
 not add permission to render, record, ingest, approve, or publish.
+
+### 2026-09-03 — A final render is not a release
+
+Final mode proves technical and narration readiness. Candidate creation names
+one exact combination of intent and media. Human approval binds a person to that
+candidate. These states remain separate, and none implies publication.
+
+### 2026-09-03 — Approval must name what was approved
+
+Approval requires the token derived from the complete candidate record and
+recomputes both manifest and media identity. A creator cannot accidentally
+approve a file or project state that changed after review.

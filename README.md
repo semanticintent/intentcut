@@ -14,7 +14,7 @@ Read the complete [concept](./CONCEPT.md).
 
 ## Status
 
-Milestone 7 is complete. IntentCut validates YAML manifests, inspects media,
+Milestone 8 is in progress. IntentCut validates YAML manifests, inspects media,
 resolves an exact timeline, compiles it through FFmpeg, and validates the
 rendered artifact with JSON and Markdown reports. Its visual grammar now
 includes timed annotations, portable WebVTT captions, and bounded camera moves.
@@ -41,6 +41,8 @@ npm run dev -- brief examples/orbweaver/intentcut.yaml
 npm run dev -- capture-status examples/orbweaver/intentcut.yaml
 npm run dev -- agent-context examples/orbweaver/intentcut.yaml
 npm run dev -- validate-proposal examples/orbweaver/intentcut.yaml ./edit-proposal.json
+npm run dev -- candidate examples/orbweaver/intentcut.yaml
+npm run dev -- approve examples/orbweaver/intentcut.yaml ./release-candidate.json --by "Your Name" --confirm <token>
 npm run dev -- ingest examples/my-video/intentcut.yaml ./take-workspace.json
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
@@ -212,6 +214,15 @@ It exposes only `intentcut_project_context` and
 `intentcut_validate_edit_proposal`. Both are declared read-only, idempotent,
 non-destructive, and closed-world. The adapter opens no network listener and
 adds no render, capture, ingestion, approval, or publication tool.
+
+Release approval is a separate human-only CLI ceremony. `candidate` performs a
+fresh final-mode QA pass, hashes the rendered media, binds it to the semantic
+manifest revision, and prints a short confirmation token. `approve` requires
+the candidate file, an approver name, and that exact token. It re-hashes both
+intent and media before writing an immutable approval record. Changed intent,
+changed media, failed QA, preview-mode validation, or an existing approval all
+fail closed. Approval does not publish anything. See
+[release authority](./docs/RELEASE.md).
 
 Create a narration-ready production workspace with:
 
