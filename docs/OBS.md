@@ -53,13 +53,21 @@ The transport uses:
 - bounded handshake and request timeouts;
 - rejection of all pending requests when the connection closes.
 
-## Current verification boundary
+## Verification boundary
 
 Protocol behavior is tested through an injected WebSocket implementation. The
-authority adapter is tested independently through a fake OBS transport. This
-workstation does not currently have OBS installed, so no claim of a successful
-live OBS connection or recording is made.
+authority adapter is tested independently through a fake OBS transport.
+
+On 2026-09-03, the production transport was also verified against OBS 32.2.2 on
+localhost. It connected, observed an inactive recording state, started and
+stopped a disposable blank-scene recording, returned the OBS output path, and
+produced a valid 1.9-second MOV containing 1280×720 H.264 video at 30 fps and
+AAC audio. A follow-up status request confirmed recording was inactive.
+
+Authentication was restored immediately after the disposable test. A final
+connection attempt without a password was refused. No OBS password was read,
+printed, stored in the manifest, or committed.
 
 There is intentionally no CLI command for live connection or recording yet.
 That surface should be introduced only with explicit operator confirmation and
-a live OBS verification path.
+the same declared-take authority enforced by `ObsCaptureAdapter`.

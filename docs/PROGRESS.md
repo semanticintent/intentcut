@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 6 — capture workflow
-**Status:** In progress · OBS adapter and production transport complete; live verification remains
+**Status:** In progress · live OBS capture verified; ingestion remains
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -269,7 +269,7 @@ proposal stable across repeated runs against unchanged evidence.
 - [x] Correlate requests and responses with bounded timeouts.
 - [x] Propagate OBS request failures and reject requests on connection loss.
 - [x] Verify the protocol through an injected WebSocket implementation.
-- [ ] Verify connection and one disposable take against a live OBS installation.
+- [x] Verify connection and one disposable take against a live OBS installation.
 - [ ] Ingest completed takes without overwriting existing media.
 
 ## Milestone 6A verified result
@@ -341,9 +341,18 @@ Handshake               bounded · authenticated or unauthenticated
 Requests                correlated · bounded timeout
 OBS failures            propagated with status code and comment
 Connection loss         all pending requests rejected
-Live OBS verification   pending · OBS not installed
+Live OBS verification   OBS 32.2.2 · connect/start/stop · PASS
+Disposable recording   1.9 s · MOV · H.264/AAC · 1280×720/30 fps
+Security restoration   unauthenticated connection refused · PASS
 Automated suite         39 tests across 12 files · PASS
 ```
+
+The live test connected to OBS on localhost, confirmed recording was initially
+inactive, recorded a blank scene for approximately two seconds, stopped it, and
+verified the resulting MOV with ffprobe. OBS briefly reported its prior active
+state while finalizing the stop response; a subsequent status request confirmed
+recording was inactive. Authentication was then restored, and a connection
+without a password was refused. No password was read, printed, or committed.
 
 The initially evaluated community client was not retained because it introduced
 an unmaintained cryptography dependency. IntentCut instead depends only on `ws`
@@ -515,8 +524,10 @@ dependency. IntentCut uses the official OBS protocol directly, delegates JSON
 WebSocket framing to `ws`, and performs the two-stage SHA-256 authentication
 calculation with Node's built-in `crypto` module.
 
-### 2026-09-03 — No unverified live claim
+### 2026-09-03 — Live claims require live evidence
 
-The transport and adapter are verified independently with injected fakes. Since
-OBS is absent from this workstation, live connection and recording remain
-explicitly pending rather than inferred from protocol-test success.
+The transport and adapter were first verified independently with injected
+fakes. A later disposable OBS 32.2.2 recording established live evidence for
+connection, start, stop, output-path reporting, and media finalization. The
+claim remains limited to that local test; no unattended or authenticated
+capture workflow is claimed.
