@@ -34,6 +34,7 @@ npm install
 npm run dev -- validate examples/orbweaver/intentcut.yaml
 npm run dev -- brief examples/orbweaver/intentcut.yaml
 npm run dev -- capture-status examples/orbweaver/intentcut.yaml
+npm run dev -- ingest examples/my-video/intentcut.yaml ./take-workspace.json
 npm run dev -- inspect examples/orbweaver/intentcut.yaml
 npm run dev -- analyze examples/orbweaver/intentcut.yaml
 npm run dev -- plan examples/orbweaver/intentcut.yaml
@@ -171,7 +172,14 @@ A production OBS WebSocket 5.x JSON transport is included. It uses Node's
 built-in SHA-256 implementation for challenge authentication and supports
 bounded connection and request timeouts. Live control remains available only
 through separate TypeScript API calls; no CLI command currently connects or
-records. Ingestion remains future work. See [OBS integration](./docs/OBS.md).
+records.
+
+`intentcut ingest` consumes the saved receipt as a separate human-invoked step.
+It verifies the take, scene, and destination against the manifest, requires an
+absolute captured-media path, and copies with exclusive-create semantics. It
+never overwrites an existing project source and leaves the original OBS file
+untouched. There is intentionally no `--force` or move mode. See
+[OBS integration](./docs/OBS.md).
 
 Create a narration-ready production workspace with:
 

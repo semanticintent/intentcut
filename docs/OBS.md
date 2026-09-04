@@ -42,6 +42,18 @@ These are intentionally separate operations. Connecting does not start a
 recording. Stopping returns a `captured-uningested` receipt and does not move the
 OBS output into the expected source path.
 
+Save that receipt as JSON, then ingest it as a separate explicit action:
+
+```bash
+intentcut ingest intentcut.yaml take-workspace.json
+```
+
+The receipt must still identify the declared scene, take id, and exact manifest
+source. IntentCut requires OBS's output path to be absolute, confirms the source
+is a regular file, creates the destination with exclusive-copy semantics, and
+preserves the OBS original. If the declared project source already exists, the
+operation fails without changing it. No force or overwrite option exists.
+
 ## Protocol behavior
 
 The transport uses:

@@ -3,6 +3,7 @@ export { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./bri
 export { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
 export { ObsCaptureAdapter } from "./obs.js";
 export { createObsAuthentication, ObsWebSocketTransport } from "./obs-websocket.js";
+export { ingestCapturedRecording, loadRecordingReceipt, obsRecordingReceiptSchema } from "./ingest.js";
 export { createFirstCutProposal, formatFirstCutProposal, writeFirstCutProposal } from "./first-cut.js";
 export { analyzeAudio, analyzeSources, createContactSheetPlans, formatSourceAnalysis, parseCutCandidates, parseSilenceRegions, parseWebVtt } from "./analyze.js";
 export { checkBuild, formatBuildReport } from "./check.js";
@@ -19,6 +20,7 @@ export type { CaptureBrief, CaptureTake } from "./brief.js";
 export type { CaptureEnvironmentStatus, CaptureProbeFacts } from "./capture-status.js";
 export type { ObsAdapterStatus, ObsConnectionOptions, ObsRecordingReceipt, ObsRequestResult, ObsTransport } from "./obs.js";
 export type { ObsSocketFactory } from "./obs-websocket.js";
+export type { CapturedRecordingReceipt, RecordingIngestResult } from "./ingest.js";
 export type { AudioAnalysis, ContactSheetPlan, CutCandidate, SilenceRegion, SourceAnalysisReport, TranscriptAnalysis, TranscriptCue } from "./analyze.js";
 export type { FirstCutProposal, FirstCutReviewAction, FirstCutSceneProposal, FirstCutSegment } from "./first-cut.js";
 export type { CaptionCue, CaptionPlan } from "./captions.js";

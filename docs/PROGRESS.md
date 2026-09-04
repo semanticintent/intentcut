@@ -5,7 +5,7 @@ Last updated: 2026-09-03
 ## Current position
 
 **Phase:** Milestone 6 — capture workflow
-**Status:** In progress · live OBS capture verified; ingestion remains
+**Status:** Milestone 6 complete · governed capture and ingestion verified
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
 and bounded camera demo
 
@@ -155,7 +155,7 @@ FFmpeg build does not include `drawtext` or `subtitles` filters.
 
 - [x] Designed annotations, captions, and camera movement.
 - [x] Contact sheets, transcription, and assisted cut detection.
-- [~] Capture workflow and optional OBS adapter.
+- [x] Capture workflow and optional OBS adapter.
 - [ ] Bounded agent interface.
 - [ ] Explicit human approval and release workflow.
 
@@ -270,7 +270,7 @@ proposal stable across repeated runs against unchanged evidence.
 - [x] Propagate OBS request failures and reject requests on connection loss.
 - [x] Verify the protocol through an injected WebSocket implementation.
 - [x] Verify connection and one disposable take against a live OBS installation.
-- [ ] Ingest completed takes without overwriting existing media.
+- [x] Ingest completed takes without overwriting existing media.
 
 ## Milestone 6A verified result
 
@@ -357,6 +357,25 @@ without a password was refused. No password was read, printed, or committed.
 The initially evaluated community client was not retained because it introduced
 an unmaintained cryptography dependency. IntentCut instead depends only on `ws`
 for WebSocket framing and uses the Node runtime for cryptography.
+
+## Milestone 6E verified result
+
+`intentcut ingest` now consumes a strict `captured-uningested` JSON receipt as
+a separate, human-invoked operation. It validates the take against the declared
+video scene and capture contract, requires the exact manifest destination, and
+copies the OBS output with `COPYFILE_EXCL` so an existing source cannot be
+replaced even if filesystem state changes during the operation.
+
+```text
+Receipt state          captured-uningested · strict fields
+Source                 absolute path · existing regular file
+Destination            declared video-scene source only
+Operation              exclusive copy
+Existing destination   refused · original unchanged
+Captured original      preserved
+Force or move mode     not available
+Automated suite        44 tests across 13 files · PASS
+```
 
 ## Decision log
 
@@ -531,3 +550,10 @@ fakes. A later disposable OBS 32.2.2 recording established live evidence for
 connection, start, stop, output-path reporting, and media finalization. The
 claim remains limited to that local test; no unattended or authenticated
 capture workflow is claimed.
+
+### 2026-09-03 — Ingestion is explicit and non-destructive
+
+Capture completion does not grant permission to place media into the project.
+Ingestion consumes the returned receipt only when separately invoked, validates
+it against the manifest, and copies rather than moves. Existing project media
+is an absolute boundary: IntentCut exposes no force flag and never replaces it.

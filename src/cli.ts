@@ -13,6 +13,7 @@ import { analyzeSources, formatSourceAnalysis } from "./analyze.js";
 import { createFirstCutProposal, formatFirstCutProposal, writeFirstCutProposal } from "./first-cut.js";
 import { createCaptureBrief, formatCaptureBrief, writeCaptureBrief } from "./brief.js";
 import { buildCaptureStatus, detectCaptureProbeFacts, formatCaptureStatus, writeCaptureStatus } from "./capture-status.js";
+import { ingestCapturedRecording, loadRecordingReceipt } from "./ingest.js";
 
 function usage(): string {
   return [
@@ -23,6 +24,7 @@ function usage(): string {
     "  intentcut validate <manifest>",
     "  intentcut brief <manifest>",
     "  intentcut capture-status <manifest>",
+    "  intentcut ingest <manifest> <receipt.json>",
     "  intentcut inspect <manifest>",
     "  intentcut analyze <manifest>",
     "  intentcut plan <manifest>",
@@ -37,7 +39,7 @@ function usage(): string {
 async function main(): Promise<void> {
   const [command, manifestPath] = process.argv.slice(2);
 
-  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
+  if (!command || !manifestPath || !["init", "validate", "brief", "capture-status", "ingest", "inspect", "analyze", "plan", "render", "check", "narrate", "replace-voice"].includes(command)) {
     console.error(usage());
     process.exitCode = 1;
     return;
@@ -79,6 +81,18 @@ async function main(): Promise<void> {
     const output = await writeCaptureStatus(project, status);
     console.log(formatCaptureStatus(status));
     console.log(`      ${output.markdown}`);
+    return;
+  }
+
+  if (command === "ingest") {
+    const receiptPath = process.argv[4];
+    if (!receiptPath) throw new Error("ingest requires a captured recording receipt JSON file.");
+    const receipt = await loadRecordingReceipt(receiptPath);
+    const result = await ingestCapturedRecording(project, receipt);
+    console.log(`PASS  Ingested ${result.sceneId}`);
+    console.log(`      ${result.capturedSource}`);
+    console.log(`   -> ${result.projectSource}`);
+    console.log(`      ${result.bytes} bytes · copied · original preserved`);
     return;
   }
 
