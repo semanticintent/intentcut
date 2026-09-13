@@ -12,6 +12,36 @@ camera movement, captions, narration, and generated visual assets.
 
 Read the complete [concept](./CONCEPT.md).
 
+## Requirements
+
+- Node.js 22 or newer
+- [FFmpeg](https://ffmpeg.org/) with `ffprobe` on your `PATH` (macOS: `brew install ffmpeg`)
+- macOS only, for *temporary* synthetic narration: the built-in `say` command.
+  Everything else — including human-recorded narration — is cross-platform.
+
+IntentCut is pre-release and not yet published to npm. Run it from a clone.
+
+## Quickstart
+
+The quickstart example is self-contained: its placeholder media is generated
+locally with FFmpeg, so nothing outside this repository is needed.
+
+```bash
+git clone https://github.com/semanticintent/intentcut.git
+cd intentcut
+npm install
+npm run example:media
+npm run dev -- validate examples/quickstart/intentcut.yaml
+npm run dev -- plan examples/quickstart/intentcut.yaml
+npm run dev -- render examples/quickstart/intentcut.yaml --preview
+npm run dev -- check examples/quickstart/intentcut.yaml
+```
+
+The render lands in `examples/quickstart/renders/quickstart.mp4`, with JSON and
+Markdown reports beside it. The other examples (`orbweaver`, `camera-demo`,
+`narration-demo`) reproduce a real production and reference its media outside
+this repository; they will not render from a fresh clone.
+
 ## Status
 
 Milestone 8 is complete. IntentCut validates YAML manifests, inspects media,
@@ -36,22 +66,33 @@ production assets.
 
 ```bash
 npm install
-npm run dev -- validate examples/orbweaver/intentcut.yaml
-npm run dev -- brief examples/orbweaver/intentcut.yaml
-npm run dev -- capture-status examples/orbweaver/intentcut.yaml
-npm run dev -- agent-context examples/orbweaver/intentcut.yaml
-npm run dev -- validate-proposal examples/orbweaver/intentcut.yaml ./edit-proposal.json
-npm run dev -- candidate examples/orbweaver/intentcut.yaml
-npm run dev -- approve examples/orbweaver/intentcut.yaml ./release-candidate.json --by "Your Name" --confirm <token>
-npm run dev -- seal examples/orbweaver/intentcut.yaml ./release-candidate.json ./release-approval.json
-npm run dev -- authorize-publication examples/orbweaver/intentcut.yaml ./release-receipt.json --adapter directory --to ./delivery --by "Your Name" --confirm <release-id>
-npm run dev -- publish examples/orbweaver/intentcut.yaml ./release-receipt.json ./publication-intent-directory.json
-npm run dev -- ingest examples/my-video/intentcut.yaml ./take-workspace.json
-npm run dev -- inspect examples/orbweaver/intentcut.yaml
-npm run dev -- analyze examples/orbweaver/intentcut.yaml
-npm run dev -- plan examples/orbweaver/intentcut.yaml
-npm run dev -- render examples/orbweaver/intentcut.yaml --preview
-npm run dev -- check examples/orbweaver/intentcut.yaml
+# Project, capture, and analysis
+npm run dev -- init ../my-video
+npm run dev -- validate intentcut.yaml
+npm run dev -- brief intentcut.yaml
+npm run dev -- capture-status intentcut.yaml
+npm run dev -- ingest intentcut.yaml ./take-workspace.json
+npm run dev -- inspect intentcut.yaml
+npm run dev -- analyze intentcut.yaml
+npm run dev -- plan intentcut.yaml
+
+# Agent surface (read-only)
+npm run dev -- agent-context intentcut.yaml
+npm run dev -- validate-proposal intentcut.yaml ./edit-proposal.json
+
+# Narration and rendering
+npm run dev -- narrate intentcut.yaml --temporary
+npm run dev -- replace-voice intentcut.yaml <section> narration/human/<file>.wav
+npm run dev -- render intentcut.yaml --preview
+npm run dev -- render intentcut.yaml --final
+npm run dev -- check intentcut.yaml [--final]
+
+# Release and publication (human-invoked)
+npm run dev -- candidate intentcut.yaml
+npm run dev -- approve intentcut.yaml reports/release-candidate-<token>.json --by "Your Name" --confirm <token>
+npm run dev -- seal intentcut.yaml reports/release-candidate-<token>.json reports/release-approval-<token>.json
+npm run dev -- authorize-publication intentcut.yaml releases/release-<token>/release-receipt.json --adapter directory --to ./delivery --by "Your Name" --confirm release-<token>
+npm run dev -- publish intentcut.yaml releases/release-<token>/release-receipt.json releases/release-<token>/publication-intent-directory.json
 ```
 
 Declare editorial emphasis in the manifest rather than editing keyframes:
@@ -196,7 +237,7 @@ untouched. There is intentionally no `--force` or move mode. See
 `intentcut agent-context` emits a provider-neutral, read-only JSON envelope for
 agent workflows. It includes the validated project target, declared scene
 topology, capture coverage, narration-section identities, and a SHA-256 semantic
-revision. The same envelope declares every unavailable or human-only capability;
+revision covering the manifest and its narration scripts. The same envelope declares every unavailable or human-only capability;
 it does not execute media tools or write reports. See
 [bounded agent interface](./docs/AGENTS.md).
 
@@ -204,7 +245,7 @@ An agent may now author a strict `intentcut-edit-proposal` containing the
 revision from that context. `intentcut validate-proposal` checks its shape,
 revision, operation identities, and semantic targets, then returns structured
 JSON. The bounded vocabulary covers trim, speed, camera focus, annotations, and
-narration scripts; it cannot express source replacement, rendering, capture,
+narration text; it cannot express source or script paths, rendering, capture,
 ingestion, approval, or publication. Validation never changes the manifest.
 
 The optional MCP stdio adapter wraps those same two functions:
@@ -216,15 +257,18 @@ npm run mcp -- /absolute/path/to/intentcut.yaml
 It exposes only `intentcut_project_context` and
 `intentcut_validate_edit_proposal`. Both are declared read-only, idempotent,
 non-destructive, and closed-world. The adapter opens no network listener and
-adds no render, capture, ingestion, approval, or publication tool.
+adds no render, capture, ingestion, approval, or publication tool. It re-reads
+the manifest on every call, so proposals are never validated against a stale
+snapshot.
 
-Release approval is a separate human-only CLI ceremony. `candidate` performs a
-fresh final-mode QA pass, hashes the rendered media, binds it to the semantic
-manifest revision, and prints a short confirmation token. `approve` requires
-the candidate file, an approver name, and that exact token. It re-hashes both
-intent and media before writing an immutable approval record. Changed intent,
-changed media, failed QA, preview-mode validation, or an existing approval all
-fail closed. Approval does not publish anything. `seal` then revalidates that
+Release approval is a separate CLI ceremony, outside the agent surface.
+`candidate` performs a fresh final-mode QA pass, hashes the rendered media,
+binds it to the semantic manifest revision, and prints a short confirmation
+token. `approve` requires the candidate file, an approver name, and that exact
+token. It re-runs final-mode QA and re-hashes both intent and media before
+writing an immutable, per-candidate approval record. Changed intent, changed
+media, failed QA, preview-mode validation, or an existing approval for that
+candidate all fail closed. Approval does not publish anything. `seal` then revalidates that
 exact approval, intent revision, and media identity before copying the video
 into an exclusive, content-addressed local release bundle. Its immutable
 receipt records the human approval and explicitly states `published: false`;
@@ -236,8 +280,12 @@ intent record. Only then can `publish` invoke the bounded directory adapter,
 which copies the artifact exclusively and writes a completion receipt. This
 reference adapter performs no network request and makes no claim that a target
 is publicly visible; future service adapters must inherit the same contract.
-Neither operation is exposed through MCP. See
-[release authority](./docs/RELEASE.md).
+Neither operation is exposed through MCP.
+
+These ceremonies bind a human decision to an exact artifact and make accidents
+fail closed. They are not access control: a process with your shell and file
+access could write the same records. See
+[what the release records protect](./docs/RELEASE.md#what-these-records-protect--and-what-they-do-not).
 
 Create a narration-ready production workspace with:
 
@@ -252,8 +300,10 @@ npm run dev -- narrate examples/narration-demo/intentcut.yaml --temporary
 npm run dev -- render examples/narration-demo/intentcut.yaml --preview
 ```
 
-Temporary narration is valid for previews. A final render is structurally
-blocked until every section is explicitly replaced with human-final audio:
+Temporary narration (macOS `say`) is valid for previews. A final render is
+blocked until every section is explicitly replaced with human-final audio, and
+`replace-voice` refuses a missing file or one from the generated narration
+directory:
 
 ```bash
 npm run dev -- replace-voice intentcut.yaml opening narration/human/01-opening.wav

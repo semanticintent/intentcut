@@ -16,14 +16,17 @@ to OBS, ingest a recording, render a preview, approve a candidate, or publish.
 The context contains:
 
 - project title and output target;
-- a SHA-256 revision derived from the validated semantic manifest;
+- a SHA-256 revision derived from the validated semantic manifest and the
+  contents of its narration scripts (rendered media is bound separately, by
+  hash, at release time);
 - scene ids, types, and declared source references;
 - whether each scene has a capture contract;
 - narration-section identities attached to each scene;
 - the complete capability and authority boundary.
 
-No absolute manifest or workstation path is emitted. Source references remain
-in the same project-relative form declared by the creator.
+The manifest's own location is not emitted. Scene source references are passed
+through exactly as the creator declared them — normally project-relative — so
+keep sources project-relative if the context will be shared.
 
 ## Authority
 
@@ -70,32 +73,28 @@ The bounded operation vocabulary is:
 - `scene.set-camera` (a bounded camera move or `null` to remove it)
 - `annotation.upsert`
 - `annotation.remove`
-- `narration.set-script`
+- `narration.set-script` (carries proposed narration `text`; it never names a
+  script file)
 
 The validator rejects stale revisions, duplicate operation ids, unknown or
 wrong-type targets, invalid timing, undeclared fields, and any authority state
 other than `proposed-only` / `applied: false`. Its own result declares
 `validation-only`, `applied: false`, and `manifestWritten: false`.
 
-The vocabulary cannot express source paths, output configuration, capture
-settings, ingestion, rendering, approval, or publication. There is no command
-that applies an edit proposal.
+The vocabulary cannot express source or script paths, output configuration,
+capture settings, ingestion, rendering, approval, or publication. There is no
+command that applies an edit proposal.
 
 ## MCP stdio adapter
 
-Start the optional local server with one project manifest:
+IntentCut is not yet published to npm; run it from a clone. Start the optional
+local server with one project manifest:
 
 ```bash
 npm run mcp -- /absolute/path/to/intentcut.yaml
 ```
 
-Installed packages also expose:
-
-```bash
-intentcut-mcp /absolute/path/to/intentcut.yaml
-```
-
-An MCP host can launch the compiled server directly:
+For an MCP host, build once (`npm run build`) and launch the compiled server:
 
 ```json
 {
@@ -117,9 +116,11 @@ The stdio server exposes exactly two tools:
 - `intentcut_validate_edit_proposal`
 
 Both carry MCP annotations declaring them read-only, idempotent,
-non-destructive, and closed-world. The server loads one validated manifest at
-startup, opens no network listener, uses stdout only for MCP JSON-RPC, and
-delegates directly to the provider-neutral context and validation functions.
+non-destructive, and closed-world. The server validates the manifest at startup
+and re-reads it on every tool call, so a proposal is always checked against the
+manifest as it currently is. It opens no network listener, uses stdout only for
+MCP JSON-RPC, and delegates directly to the provider-neutral context and
+validation functions.
 
 Official transport reference:
 <https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/serving/stdio.md>
@@ -129,4 +130,6 @@ Official transport reference:
 Milestone 8 implements explicit human approval, local release, publication
 authorization, and publication receipts through separate CLI ceremonies. The
 MCP adapter remains outside that authority path and exposes none of those
-operations.
+operations. Those ceremonies bind approval to exact artifacts; they are not
+access control against a process with your shell access. See
+[release authority](./RELEASE.md#what-these-records-protect--and-what-they-do-not).

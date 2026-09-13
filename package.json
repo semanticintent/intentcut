@@ -15,8 +15,7 @@
     }
   },
   "files": [
-    "dist",
-    "schemas"
+    "dist"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -24,7 +23,8 @@
     "mcp": "tsx src/mcp-cli.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "example:media": "node scripts/quickstart-media.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",

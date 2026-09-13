@@ -1,0 +1,56 @@
+version: 1
+
+# A self-contained example. Generate its placeholder media first:
+#   npm run example:media
+
+project:
+  title: IntentCut Quickstart
+  resolution:
+    width: 1280
+    height: 720
+  fps: 30
+  maximumDuration: 20s
+
+scenes:
+  - id: opening
+    type: image
+    source: media/opening.png
+    duration: 3s
+    motion:
+      type: push-in
+      from: 1
+      to: 1.04
+
+  - id: screen
+    type: video
+    source: media/screen.mp4
+    trim:
+      in: 1s
+      out: 7s
+    speed: 1
+    camera:
+      - at: 1s
+        duration: 3s
+        transition: 500ms
+        zoom: 1.4
+        center:
+          x: 0.7
+          y: 0.4
+
+  - id: closing
+    type: image
+    source: media/closing.png
+    duration: 3s
+
+annotations:
+  - id: focus
+    at: 4s
+    duration: 3s
+    text: Emphasis is declared, not dragged
+    position: top-left
+    tone: accent
+
+output:
+  file: renders/quickstart.mp4
+  codec: h264
+  reportDirectory: reports

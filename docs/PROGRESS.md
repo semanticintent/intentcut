@@ -1,13 +1,14 @@
 # IntentCut progress
 
-Last updated: 2026-09-03
+Last updated: 2026-09-12
 
 ## Current position
 
 **Phase:** Milestone 8 — human approval and release
 **Status:** Complete · publication requires separately persisted human intent
 **Reference cases:** Orbweaver WebMCP Challenge demo, temporary narration demo,
-and bounded camera demo
+bounded camera demo, and the self-contained quickstart
+**Latest:** Independent second validation (2026-09-12) — gaps closed, claims corrected
 
 ## Progress legend
 
@@ -746,3 +747,22 @@ Selecting a release is not permission to deliver it. Publication authorization
 binds a human, exact release receipt, adapter, and target before any adapter can
 run. Completion is a second immutable record. The first adapter is deliberately
 local and copy-only; transport does not get to invent authority.
+
+### 2026-09-12 — Second validation: claims must match enforcement
+
+An independent review checked every documented guarantee against the code and
+tried to break each one. The mechanisms existed, but several trusted inputs they
+should not: approval accepted the pass recorded in a candidate file, the MCP
+server validated proposals against a startup snapshot, the semantic revision
+silently dropped misspelled keys and ignored narration script contents, a
+proposal could express a script path, ingest could write outside the project,
+and a second release could not be approved without deleting the first record.
+All were fixed with refusal-path tests.
+
+The larger correction was to the claim itself. The release ceremony binds a
+human decision to an exact artifact and makes accidents fail closed; it is not
+access control against a process holding the operator's shell access. The
+documentation now says so. A self-contained quickstart replaces examples that
+only rendered on the original workstation, and the full release path —
+render, candidate, approve, seal, authorize, publish — was re-run end to end
+on it, including each refusal.

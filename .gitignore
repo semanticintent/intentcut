@@ -22,3 +22,6 @@ examples/**/narration/generated/
 !.env.example
 *.tmp
 *.log
+
+# Generated example media
+examples/quickstart/media/
