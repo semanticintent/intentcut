@@ -64,7 +64,9 @@ const setNarrationScript = z.object({
   id: identifier,
   operation: z.literal("narration.set-script"),
   sectionId: identifier,
-  script: z.string().min(1),
+  // The proposed narration wording itself — never a path. A manifest section's
+  // `script` field is a file path; proposals express text and cannot retarget it.
+  text: z.string().min(1).max(5000),
 }).strict();
 
 export const agentEditOperationSchema = z.discriminatedUnion("operation", [

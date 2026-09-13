@@ -31,7 +31,7 @@ function proposal(projectValue: LoadedProject): Record<string, unknown> {
       { id: "speed-demo", operation: "scene.set-speed", sceneId: "demo", speed: 1.25 },
       { id: "focus-demo", operation: "scene.set-camera", sceneId: "demo", camera: { at: "4s", duration: "5s", transition: "750ms", zoom: 1.2, center: { x: 0.7, y: 0.5 } } },
       { id: "add-note", operation: "annotation.upsert", annotation: { id: "result", at: "10s", duration: "3s", text: "Visible result", position: "bottom-left", tone: "accent" } },
-      { id: "rewrite-voice", operation: "narration.set-script", sectionId: "voice-demo", script: "New script." },
+      { id: "rewrite-voice", operation: "narration.set-script", sectionId: "voice-demo", text: "New script." },
       { id: "remove-note", operation: "annotation.remove", annotationId: "existing" },
     ],
     authority: { state: "proposed-only", applied: false },
@@ -70,7 +70,7 @@ describe("revision-bound agent edit proposals", () => {
     const input = proposal(current);
     input.operations = [
       { id: "bad-trim", operation: "scene.set-trim", sceneId: "demo", trim: { in: "12s", out: "4s" } },
-      { id: "bad-section", operation: "narration.set-script", sectionId: "missing", script: "No." },
+      { id: "bad-section", operation: "narration.set-script", sectionId: "missing", text: "No." },
       { id: "bad-remove", operation: "annotation.remove", annotationId: "missing" },
     ];
     const result = validateAgentEditProposal(current, input);

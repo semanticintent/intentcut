@@ -88,24 +88,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (command === "approve") {
-    const candidatePath = process.argv[4];
-    const byIndex = process.argv.indexOf("--by");
-    const confirmIndex = process.argv.indexOf("--confirm");
-    const approvedBy = byIndex >= 0 ? process.argv[byIndex + 1] : undefined;
-    const confirmation = confirmIndex >= 0 ? process.argv[confirmIndex + 1] : undefined;
-    if (!candidatePath || !approvedBy || !confirmation) {
-      throw new Error("approve requires a candidate JSON file, --by <name>, and --confirm <token>.");
-    }
-    const approval = await approveReleaseCandidate(project, await loadReleaseCandidate(candidatePath), approvedBy, confirmation);
-    const output = await writeReleaseApproval(project, approval);
-    console.log(`APPROVED  ${approval.project}`);
-    console.log(`          ${approval.approvedBy} · ${approval.approvedAt}`);
-    console.log(`          ${approval.candidateDigest}`);
-    console.log(`          ${output}`);
-    return;
-  }
-
   if (command === "seal") {
     const candidatePath = process.argv[4];
     const approvalPath = process.argv[5];
@@ -241,6 +223,27 @@ async function main(): Promise<void> {
     await writeNarrationReport(project, narrationPlan);
     captionPlan = await createCaptionPlan(project, narrationPlan);
     if (captionPlan) await writeCaptions(captionPlan);
+  }
+
+  if (command === "approve") {
+    const candidatePath = process.argv[4];
+    const byIndex = process.argv.indexOf("--by");
+    const confirmIndex = process.argv.indexOf("--confirm");
+    const approvedBy = byIndex >= 0 ? process.argv[byIndex + 1] : undefined;
+    const confirmation = confirmIndex >= 0 ? process.argv[confirmIndex + 1] : undefined;
+    if (!candidatePath || !approvedBy || !confirmation) {
+      throw new Error("approve requires a candidate JSON file, --by <name>, and --confirm <token>.");
+    }
+    // Re-run final QA now; never trust the pass recorded in the candidate file.
+    const report = await checkBuild(project, timeline, narrationPlan, true, captionPlan);
+    console.log(formatBuildReport(report));
+    const approval = await approveReleaseCandidate(project, await loadReleaseCandidate(candidatePath), report, approvedBy, confirmation);
+    const output = await writeReleaseApproval(project, approval);
+    console.log(`\nAPPROVED  ${approval.project}`);
+    console.log(`          ${approval.approvedBy} · ${approval.approvedAt}`);
+    console.log(`          ${approval.candidateDigest}`);
+    console.log(`          ${output}`);
+    return;
   }
 
   if (command === "narrate") {

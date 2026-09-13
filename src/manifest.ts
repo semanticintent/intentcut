@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, parseDocument } from "yaml";
 import { z } from "zod";
@@ -20,8 +21,8 @@ const imageSceneSchema = baseSceneSchema.extend({
     type: z.enum(["none", "push-in", "pull-out"]),
     from: z.number().positive().optional(),
     to: z.number().positive().optional(),
-  }).optional(),
-});
+  }).strict().optional(),
+}).strict();
 
 const videoSceneSchema = baseSceneSchema.extend({
   type: z.literal("video"),
@@ -29,7 +30,7 @@ const videoSceneSchema = baseSceneSchema.extend({
   trim: z.object({
     in: durationSchema.default("0s"),
     out: durationSchema.optional(),
-  }).optional(),
+  }).strict().optional(),
   speed: z.number().positive().max(100).default(1),
   camera: z.array(z.object({
     at: durationSchema,
@@ -39,9 +40,9 @@ const videoSceneSchema = baseSceneSchema.extend({
     center: z.object({
       x: z.number().min(0).max(1),
       y: z.number().min(0).max(1),
-    }),
-  })).max(1, "Milestone 4 supports one focus movement per video scene.").optional(),
-});
+    }).strict(),
+  }).strict()).max(1, "Milestone 4 supports one focus movement per video scene.").optional(),
+}).strict();
 
 const annotationSchema = z.object({
   id: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/),
@@ -50,14 +51,14 @@ const annotationSchema = z.object({
   text: z.string().min(1).max(120),
   position: z.enum(["top-left", "top-right", "bottom-left", "bottom-right", "center"]),
   tone: z.enum(["neutral", "accent", "warning"]).default("neutral"),
-});
+}).strict();
 
 const narrationModeSchema = z.enum(["human-final", "synthetic-prototype"]);
 
 const singleNarrationSchema = z.object({
   source: z.string().min(1),
   mode: narrationModeSchema,
-});
+}).strict();
 
 const narrationSectionSchema = z.object({
   id: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/),
@@ -68,7 +69,7 @@ const narrationSectionSchema = z.object({
   source: z.string().min(1).optional(),
   voice: z.string().min(1).optional(),
   rate: z.number().int().min(80).max(450).optional(),
-}).superRefine((section, context) => {
+}).strict().superRefine((section, context) => {
   if (section.mode === "human-final" && !section.source) {
     context.addIssue({
       code: "custom",
@@ -81,7 +82,7 @@ const narrationSectionSchema = z.object({
 const sectionedNarrationSchema = z.object({
   sections: z.array(narrationSectionSchema).min(1),
   generatedDirectory: z.string().min(1).default("narration/generated"),
-}).superRefine((narration, context) => {
+}).strict().superRefine((narration, context) => {
   const ids = new Set<string>();
   narration.sections.forEach((section, index) => {
     if (ids.has(section.id)) {
@@ -102,10 +103,10 @@ export const projectManifestSchema = z.object({
     resolution: z.object({
       width: z.number().int().positive(),
       height: z.number().int().positive(),
-    }),
+    }).strict(),
     fps: z.number().positive().max(240),
     maximumDuration: durationSchema,
-  }),
+  }).strict(),
   scenes: z.array(z.discriminatedUnion("type", [imageSceneSchema, videoSceneSchema])).min(1),
   annotations: z.array(annotationSchema).default([]),
   inspection: z.object({
@@ -113,16 +114,16 @@ export const projectManifestSchema = z.object({
       samples: z.number().int().min(4).max(36).default(12),
       columns: z.number().int().min(2).max(6).default(4),
       frameWidth: z.number().int().min(240).max(960).default(480),
-    }).default({ samples: 12, columns: 4, frameWidth: 480 }),
+    }).strict().default({ samples: 12, columns: 4, frameWidth: 480 }),
     cutDetection: z.object({
       threshold: z.number().min(0.01).max(1).default(0.18),
       minimumGap: durationSchema.default("1s"),
       maximumCandidates: z.number().int().min(1).max(100).default(20),
-    }).default({ threshold: 0.18, minimumGap: "1s", maximumCandidates: 20 }),
+    }).strict().default({ threshold: 0.18, minimumGap: "1s", maximumCandidates: 20 }),
     silenceDetection: z.object({
       thresholdDb: z.number().min(-80).max(-10).default(-35),
       minimumDuration: durationSchema.default("500ms"),
-    }).default({ thresholdDb: -35, minimumDuration: "500ms" }),
+    }).strict().default({ thresholdDb: -35, minimumDuration: "500ms" }),
     transcripts: z.array(z.object({
       scene: z.string().min(1),
       source: z.string().min(1),
@@ -130,8 +131,8 @@ export const projectManifestSchema = z.object({
       provider: z.string().min(1),
       model: z.string().min(1).optional(),
       provenance: z.enum(["human", "local-model", "hosted-model"]),
-    })).default([]),
-  }).default({
+    }).strict()).default([]),
+  }).strict().default({
     contactSheets: { samples: 12, columns: 4, frameWidth: 480 },
     cutDetection: { threshold: 0.18, minimumGap: "1s", maximumCandidates: 20 },
     silenceDetection: { thresholdDb: -35, minimumDuration: "500ms" },
@@ -152,30 +153,30 @@ export const projectManifestSchema = z.object({
       visibleProof: z.array(z.string().min(1)).min(1),
       endState: z.string().min(1),
       privacyNotes: z.array(z.string().min(1)).default([]),
-    })).default([]),
+    }).strict()).default([]),
     obs: z.object({
       enabled: z.boolean().default(false),
       url: z.string().regex(/^wss?:\/\//, "OBS URL must use ws:// or wss://.").default("ws://127.0.0.1:4455"),
       passwordEnvironmentVariable: z.string().regex(/^[A-Z_][A-Z0-9_]*$/).optional(),
     }).strict().optional(),
-  }).optional(),
+  }).strict().optional(),
   audio: z.object({
     narration: z.union([singleNarrationSchema, sectionedNarrationSchema]),
     loudness: z.object({
       integrated: z.number().min(-70).max(-5).default(-16),
       truePeak: z.number().min(-9).max(0).default(-1.5),
       range: z.number().min(1).max(50).default(7),
-    }).default({ integrated: -16, truePeak: -1.5, range: 7 }),
-  }).optional(),
+    }).strict().default({ integrated: -16, truePeak: -1.5, range: 7 }),
+  }).strict().optional(),
   output: z.object({
     file: z.string().min(1),
     codec: z.literal("h264").default("h264"),
     reportDirectory: z.string().min(1).default("reports"),
     captions: z.object({
       file: z.string().min(1).default("captions.vtt"),
-    }).optional(),
-  }),
-}).superRefine((manifest, context) => {
+    }).strict().optional(),
+  }).strict(),
+}).strict().superRefine((manifest, context) => {
   const ids = new Set<string>();
 
   manifest.scenes.forEach((scene, index) => {
@@ -244,6 +245,30 @@ export interface LoadedProject {
   manifest: ProjectManifest;
   manifestPath: string;
   baseDirectory: string;
+  /**
+   * SHA-256 of small intent files the manifest references (narration scripts),
+   * keyed by manifest-relative path; "missing" when absent. Folded into the
+   * semantic revision so rewriting a script invalidates stale proposals and
+   * approvals. Media contents are deliberately excluded — rendered media is
+   * bound separately, by hash, at release time.
+   */
+  contentDigests?: Record<string, string>;
+}
+
+async function referencedContentDigests(manifest: ProjectManifest, baseDirectory: string): Promise<Record<string, string>> {
+  const narration = manifest.audio?.narration;
+  if (!narration || !("sections" in narration)) return {};
+  const digests: Record<string, string> = {};
+  for (const section of narration.sections) {
+    try {
+      const content = await readFile(path.resolve(baseDirectory, section.script));
+      digests[section.script] = `sha256:${createHash("sha256").update(content).digest("hex")}`;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      digests[section.script] = "missing";
+    }
+  }
+  return digests;
 }
 
 export async function loadProject(manifestPath: string): Promise<LoadedProject> {
@@ -251,12 +276,20 @@ export async function loadProject(manifestPath: string): Promise<LoadedProject> 
   const source = await readFile(absolutePath, "utf8");
   const parsed = parseYaml(source) as unknown;
   const manifest = projectManifestSchema.parse(parsed);
+  const baseDirectory = path.dirname(absolutePath);
 
   return {
     manifest,
     manifestPath: absolutePath,
-    baseDirectory: path.dirname(absolutePath),
+    baseDirectory,
+    contentDigests: await referencedContentDigests(manifest, baseDirectory),
   };
+}
+
+/** True when `target` is `directory` itself or lies beneath it (lexically). */
+export function isWithin(directory: string, target: string): boolean {
+  const relative = path.relative(path.resolve(directory), path.resolve(target));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 export function resolveProjectPath(project: LoadedProject, source: string): string {
@@ -281,6 +314,14 @@ export async function replaceNarrationSection(
   const index = narration.sections.findIndex((section) => section.id === sectionId);
   if (index < 0) {
     throw new Error(`Unknown narration section "${sectionId}".`);
+  }
+
+  const baseDirectory = path.dirname(absolutePath);
+  const sourcePath = path.resolve(baseDirectory, source);
+  const sourceStat = await stat(sourcePath).catch(() => undefined);
+  if (!sourceStat?.isFile()) throw new Error(`Human-final narration source does not exist: ${sourcePath}`);
+  if (isWithin(path.resolve(baseDirectory, narration.generatedDirectory), sourcePath)) {
+    throw new Error("Human-final narration cannot come from the generated temporary narration directory.");
   }
 
   document.setIn(["audio", "narration", "sections", index, "mode"], "human-final");

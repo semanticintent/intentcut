@@ -21,12 +21,15 @@ rejected by schema validation.
 
 ## TypeScript API
 
+IntentCut is not yet published to npm. From a clone, import from the source
+entry point (or from `dist/index.js` after `npm run build`):
+
 ```ts
 import {
   ObsCaptureAdapter,
   ObsWebSocketTransport,
   loadProject,
-} from "@semanticintent/intentcut";
+} from "./src/index.js";
 
 const project = await loadProject("intentcut.yaml");
 const transport = new ObsWebSocketTransport();

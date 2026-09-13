@@ -69,11 +69,17 @@ export function releaseReceiptDigest(receipt: ReleaseReceipt): string {
   return `sha256:${createHash("sha256").update(JSON.stringify(validated)).digest("hex")}`;
 }
 
+function assertFinalPassingReport(project: LoadedProject, report: BuildReport, step: string): void {
+  if (!report.passed) throw new Error(`${step} blocked: the current build report failed.`);
+  if (report.mode !== "final") throw new Error(`${step} blocked: run validation in final mode.`);
+  if (path.resolve(report.output) !== resolveProjectPath(project, project.manifest.output.file)) {
+    throw new Error(`${step} blocked: build report output does not match the manifest.`);
+  }
+}
+
 export async function createReleaseCandidate(project: LoadedProject, report: BuildReport): Promise<ReleaseCandidate> {
-  if (!report.passed) throw new Error("Release candidate blocked: the current build report failed.");
-  if (report.mode !== "final") throw new Error("Release candidate blocked: run validation in final mode.");
+  assertFinalPassingReport(project, report, "Release candidate");
   const outputPath = resolveProjectPath(project, project.manifest.output.file);
-  if (path.resolve(report.output) !== outputPath) throw new Error("Release candidate blocked: build report output does not match the manifest.");
   const media = await stat(outputPath);
   if (!media.isFile()) throw new Error("Release candidate blocked: rendered output is not a regular file.");
   return {
@@ -89,7 +95,8 @@ export async function writeReleaseCandidate(project: LoadedProject, candidate: R
   const validated = releaseCandidateSchema.parse(candidate);
   const reportDirectory = resolveProjectPath(project, project.manifest.output.reportDirectory);
   await mkdir(reportDirectory, { recursive: true });
-  const output = path.join(reportDirectory, "release-candidate.json");
+  // Named by token so a later candidate never orphans an earlier approval.
+  const output = path.join(reportDirectory, `release-candidate-${releaseCandidateToken(validated)}.json`);
   await writeFile(output, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
   return output;
 }
@@ -106,14 +113,21 @@ export async function loadReleaseReceipt(receiptPath: string): Promise<ReleaseRe
   return releaseReceiptSchema.parse(JSON.parse(await readFile(path.resolve(receiptPath), "utf8")) as unknown);
 }
 
+/**
+ * Approval re-validates rather than trusting the candidate file: the caller must
+ * supply a fresh final-mode build report for the current output. The candidate's
+ * own `validation` block is a record of what was checked, not proof that it passed.
+ */
 export async function approveReleaseCandidate(
   project: LoadedProject,
   candidate: ReleaseCandidate,
+  report: BuildReport,
   approvedBy: string,
   confirmationToken: string,
   now = new Date(),
 ): Promise<ReleaseApproval> {
   const validated = releaseCandidateSchema.parse(candidate);
+  assertFinalPassingReport(project, report, "Approval");
   if (!approvedBy.trim()) throw new Error("Approval requires the human approver's name.");
   if (confirmationToken !== releaseCandidateToken(validated)) throw new Error("Approval token does not match this exact release candidate.");
   const currentRevision = createAgentProjectContext(project).project.revision;
@@ -138,8 +152,15 @@ export async function writeReleaseApproval(project: LoadedProject, approval: Rel
   const validated = releaseApprovalSchema.parse(approval);
   const reportDirectory = resolveProjectPath(project, project.manifest.output.reportDirectory);
   await mkdir(reportDirectory, { recursive: true });
-  const output = path.join(reportDirectory, "release-approval.json");
-  await writeFile(output, `${JSON.stringify(validated, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  // One immutable approval per candidate; a new candidate gets its own record.
+  const token = validated.candidateDigest.slice("sha256:".length, "sha256:".length + 12);
+  const output = path.join(reportDirectory, `release-approval-${token}.json`);
+  await writeFile(output, `${JSON.stringify(validated, null, 2)}\n`, { encoding: "utf8", flag: "wx" }).catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw Object.assign(new Error(`This candidate is already approved: ${output}`), { code: "EEXIST" });
+    }
+    throw error;
+  });
   return output;
 }
 

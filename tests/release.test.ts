@@ -43,7 +43,7 @@ describe("human release approval", () => {
     const { project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
     const token = releaseCandidateToken(candidate);
-    const approval = await approveReleaseCandidate(current, candidate, "Michael Shatny", token, new Date("2026-09-03T20:00:00.000Z"));
+    const approval = await approveReleaseCandidate(current, candidate, report(current), "Michael Shatny", token, new Date("2026-09-03T20:00:00.000Z"));
     expect(candidate.authority).toEqual({ state: "release-candidate", approved: false, released: false });
     expect(token).toMatch(/^[a-f0-9]{12}$/);
     expect(approval).toMatchObject({
@@ -62,31 +62,52 @@ describe("human release approval", () => {
   it("rejects a wrong confirmation token or unnamed approver", async () => {
     const { project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    await expect(approveReleaseCandidate(current, candidate, "Michael", "wrong-token")).rejects.toThrow("token");
-    await expect(approveReleaseCandidate(current, candidate, " ", releaseCandidateToken(candidate))).rejects.toThrow("name");
+    await expect(approveReleaseCandidate(current, candidate, report(current), "Michael", "wrong-token")).rejects.toThrow("token");
+    await expect(approveReleaseCandidate(current, candidate, report(current), " ", releaseCandidateToken(candidate))).rejects.toThrow("name");
   });
 
   it("rejects approval after project intent changes", async () => {
     const { directory, project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    await expect(approveReleaseCandidate(project(directory, "Changed"), candidate, "Michael", releaseCandidateToken(candidate))).rejects.toThrow("intent changed");
+    await expect(approveReleaseCandidate(project(directory, "Changed"), candidate, report(project(directory, "Changed")), "Michael", releaseCandidateToken(candidate))).rejects.toThrow("intent changed");
   });
 
   it("rejects approval after rendered media changes", async () => {
     const { directory, project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
     await writeFile(path.join(directory, current.manifest.output.file), "different media");
-    await expect(approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate))).rejects.toThrow("media changed");
+    await expect(approveReleaseCandidate(current, candidate, report(current), "Michael", releaseCandidateToken(candidate))).rejects.toThrow("media changed");
   });
 
   it("refuses to replace an existing human approval record", async () => {
     const { directory, project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    const approval = await approveReleaseCandidate(current, candidate, report(current), "Michael", releaseCandidateToken(candidate));
     const output = await writeReleaseApproval(current, approval);
     await expect(writeReleaseApproval(current, approval)).rejects.toMatchObject({ code: "EEXIST" });
+    await expect(writeReleaseApproval(current, approval)).rejects.toThrow("already approved");
     expect(JSON.parse(await readFile(output, "utf8"))).toMatchObject({ approvedBy: "Michael" });
-    expect(output).toBe(path.join(directory, "reports/release-approval.json"));
+    expect(output).toBe(path.join(directory, `reports/release-approval-${releaseCandidateToken(candidate)}.json`));
+  });
+
+  it("keeps a separate immutable approval for each release candidate", async () => {
+    const { directory, project: current } = await fixture();
+    const first = await createReleaseCandidate(current, report(current));
+    const firstApproval = await writeReleaseApproval(current, await approveReleaseCandidate(current, first, report(current), "Michael", releaseCandidateToken(first)));
+    await writeFile(path.join(directory, current.manifest.output.file), "second render");
+    const second = await createReleaseCandidate(current, report(current));
+    const secondApproval = await writeReleaseApproval(current, await approveReleaseCandidate(current, second, report(current), "Michael", releaseCandidateToken(second)));
+    expect(secondApproval).not.toBe(firstApproval);
+    expect(JSON.parse(await readFile(firstApproval, "utf8"))).toMatchObject({ mediaSha256: first.media.sha256 });
+  });
+
+  it("re-validates at approval instead of trusting the candidate's recorded pass", async () => {
+    const { project: current } = await fixture();
+    const candidate = await createReleaseCandidate(current, report(current));
+    const token = releaseCandidateToken(candidate);
+    await expect(approveReleaseCandidate(current, candidate, report(current, { passed: false }), "Michael", token)).rejects.toThrow("Approval blocked: the current build report failed");
+    await expect(approveReleaseCandidate(current, candidate, report(current, { mode: "preview" }), "Michael", token)).rejects.toThrow("final mode");
+    await expect(approveReleaseCandidate(current, candidate, report(current, { output: "/elsewhere/final.mp4" }), "Michael", token)).rejects.toThrow("output does not match");
   });
 });
 
@@ -94,7 +115,7 @@ describe("sealed release bundles", () => {
   it("copies exact approved media into a content-addressed bundle with an immutable receipt", async () => {
     const { directory, project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    const approval = await approveReleaseCandidate(current, candidate, "Michael Shatny", releaseCandidateToken(candidate), new Date("2026-09-03T20:00:00.000Z"));
+    const approval = await approveReleaseCandidate(current, candidate, report(current), "Michael Shatny", releaseCandidateToken(candidate), new Date("2026-09-03T20:00:00.000Z"));
     const result = await sealApprovedRelease(current, candidate, approval, new Date("2026-09-03T21:00:00.000Z"));
     expect(result.receipt).toMatchObject({
       releaseId: `release-${releaseCandidateToken(candidate)}`,
@@ -110,7 +131,7 @@ describe("sealed release bundles", () => {
   it("rejects an approval for a different candidate", async () => {
     const { project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    const approval = await approveReleaseCandidate(current, candidate, report(current), "Michael", releaseCandidateToken(candidate));
     const changedCandidate = { ...candidate, validation: { ...candidate.validation, report: "reports/other.json" } };
     await expect(sealApprovedRelease(current, changedCandidate, approval)).rejects.toThrow("exact candidate");
   });
@@ -118,7 +139,7 @@ describe("sealed release bundles", () => {
   it("rejects changed media after approval", async () => {
     const { directory, project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    const approval = await approveReleaseCandidate(current, candidate, report(current), "Michael", releaseCandidateToken(candidate));
     await writeFile(path.join(directory, current.manifest.output.file), "changed after approval");
     await expect(sealApprovedRelease(current, candidate, approval)).rejects.toThrow("media changed");
   });
@@ -126,14 +147,14 @@ describe("sealed release bundles", () => {
   it("rejects changed project intent after approval", async () => {
     const { directory, project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    const approval = await approveReleaseCandidate(current, candidate, report(current), "Michael", releaseCandidateToken(candidate));
     await expect(sealApprovedRelease(project(directory, "Changed"), candidate, approval)).rejects.toThrow("intent changed");
   });
 
   it("refuses to replace an existing release bundle", async () => {
     const { project: current } = await fixture();
     const candidate = await createReleaseCandidate(current, report(current));
-    const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate));
+    const approval = await approveReleaseCandidate(current, candidate, report(current), "Michael", releaseCandidateToken(candidate));
     const first = await sealApprovedRelease(current, candidate, approval);
     await expect(sealApprovedRelease(current, candidate, approval)).rejects.toMatchObject({ code: "EEXIST" });
     expect(JSON.parse(await readFile(first.receiptPath, "utf8"))).toEqual(first.receipt);

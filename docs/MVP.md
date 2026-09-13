@@ -61,8 +61,11 @@ rate, duration, audio, loudness, true-peak, and narration-mode checks.
 - Publication integrations.
 - Graphical timeline editing.
 
-These remain part of the concept. They follow only after the deterministic
-compiler and renderer work end to end.
+These were deferred for the MVP. Since then, agent context and a bounded MCP
+adapter, an opt-in OBS capture adapter, cut and silence detection, temporary
+synthetic narration, and a local directory publication adapter have been
+implemented (see `PROGRESS.md`). Remotion compositions, hosted publication
+integrations, and graphical timeline editing remain future work.
 
 ## Post-MVP progress
 

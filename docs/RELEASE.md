@@ -19,8 +19,8 @@ intentcut candidate intentcut.yaml
 ```
 
 This command runs a fresh final-mode validation, then writes
-`release-candidate.json` beneath the configured report directory. The candidate
-binds:
+`release-candidate-<token>.json` beneath the configured report directory. The
+candidate binds:
 
 - the semantic manifest SHA-256 revision;
 - the rendered media SHA-256 and byte size;
@@ -29,30 +29,33 @@ binds:
 - authority state `release-candidate`, `approved: false`, `released: false`.
 
 The command prints a 12-character confirmation token derived from the complete
-candidate record.
+candidate record. Each candidate is written under its own token, so creating a
+new candidate never orphans an earlier approval.
 
 ## 3. Human approval
 
 ```bash
-intentcut approve intentcut.yaml reports/release-candidate.json \
+intentcut approve intentcut.yaml reports/release-candidate-<token>.json \
   --by "Your Name" \
   --confirm <token>
 ```
 
-Approval recomputes the current semantic revision and rendered-media hash. A
-wrong token, changed manifest, changed media, mismatched project/output, or
+Approval does not trust the candidate file's recorded pass. It runs final-mode
+QA again against the current output, then recomputes the semantic revision and
+rendered-media hash. A failed or preview-mode check, wrong token, changed
+manifest or narration script, changed media, mismatched project/output, or
 malformed candidate is rejected. The approver name and approval time are then
-recorded in `release-approval.json` with authority state `human-approved` and
-`released: false`.
+recorded in `release-approval-<token>.json` with authority state
+`human-approved` and `released: false`.
 
-The approval record is created exclusively. IntentCut refuses to overwrite an
-existing human approval.
+Each approval record is created exclusively. IntentCut refuses to overwrite an
+existing approval for the same candidate; a new candidate gets its own record.
 
 ## 4. Seal the approved artifact locally
 
 ```bash
-intentcut seal intentcut.yaml reports/release-candidate.json \
-  reports/release-approval.json
+intentcut seal intentcut.yaml reports/release-candidate-<token>.json \
+  reports/release-approval-<token>.json
 ```
 
 Before writing anything, `seal` validates that the approval names the exact
@@ -119,3 +122,40 @@ completion-receipt boundary.
 - `publish` can execute only that bound release, adapter, and target.
 - MCP exposes no candidate, approval, release, or publication operation.
 - The reference publication adapter performs no network request.
+
+## What these records protect — and what they do not
+
+The release ceremony is an **integrity binding for an honest operator**, not
+access control.
+
+It reliably prevents:
+
+- approving, sealing, or publishing a different or changed artifact than the
+  one reviewed — every step re-hashes intent and media and fails closed;
+- approving an artifact that does not pass final-mode QA right now;
+- accidental or repeated steps — records are exclusive and never overwritten;
+- any consequential action by an agent limited to the MCP adapter, which has no
+  path to these commands.
+
+It does not prevent a process running with your user account's shell or file
+access from writing these JSON records itself. The confirmation token is
+derived from the candidate and printed by `candidate`; it confirms *which*
+candidate, not *who*. Approver and publisher names are recorded as given.
+Likewise, `human-final` narration is a declaration: IntentCut refuses the
+obvious relabelling of generated audio, but cannot tell a person's voice from a
+different synthetic file.
+
+If an agent has unrestricted shell access in the same account, treat approval
+records as a log of intent rather than proof of a human decision. Cryptographic
+signing with a key the agent cannot read would be the next step toward that
+stronger claim.
+
+## Operational notes
+
+- `render --preview` writes to the same `output.file` a candidate is bound to.
+  Seal an approved candidate before rendering again, or the approval becomes
+  stale (it fails closed; the media is not recoverable from the approval).
+- If `publish` is interrupted after copying but before its receipt is written,
+  the target `<release-id>` directory remains and a retry refuses to overwrite
+  it. Inspect and remove that partial delivery directory manually before
+  retrying.

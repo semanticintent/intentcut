@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -57,10 +57,52 @@ audio:
 output: { file: renders/preview.mp4, codec: h264 }
 `, "utf8");
 
+    await mkdir(path.join(directory, "narration/human"), { recursive: true });
+    await writeFile(path.join(directory, "narration/human/voice.wav"), "human take");
     await replaceNarrationSection(manifestPath, "voice", "narration/human/voice.wav");
     const updated = await readFile(manifestPath, "utf8");
     expect(updated).toContain("mode: human-final");
     expect(updated).toContain("source: narration/human/voice.wav");
+  });
+
+  it("refuses a missing file or generated temporary audio as human-final narration", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "intentcut-manifest-"));
+    const manifestPath = path.join(directory, "intentcut.yaml");
+    const original = `version: 1
+project:
+  title: Relabel test
+  resolution: { width: 1920, height: 1080 }
+  fps: 30
+  maximumDuration: 20s
+scenes:
+  - { id: opening, type: image, source: opening.png, duration: 8s }
+audio:
+  narration:
+    sections:
+      - { id: voice, scene: opening, script: voice.md, mode: synthetic-prototype }
+output: { file: renders/preview.mp4, codec: h264 }
+`;
+    await writeFile(manifestPath, original, "utf8");
+    await expect(replaceNarrationSection(manifestPath, "voice", "narration/human/missing.wav")).rejects.toThrow("does not exist");
+    await mkdir(path.join(directory, "narration/generated"), { recursive: true });
+    await writeFile(path.join(directory, "narration/generated/voice.aiff"), "synthetic");
+    await expect(replaceNarrationSection(manifestPath, "voice", "narration/generated/voice.aiff")).rejects.toThrow("generated temporary narration");
+    expect(await readFile(manifestPath, "utf8")).toBe(original);
+  });
+
+  it("rejects unknown or misspelled manifest keys instead of dropping them", () => {
+    expect(() => projectManifestSchema.parse({
+      version: 1,
+      project: { title: "Typo", resolution: { width: 1920, height: 1080 }, fps: 30, maximumDuration: "10s" },
+      scenes: [{ id: "demo", type: "video", source: "demo.mov", sped: 4 }],
+      output: { file: "out.mp4" },
+    })).toThrow();
+    expect(() => projectManifestSchema.parse({
+      version: 1,
+      project: { title: "Typo", resolution: { width: 1920, height: 1080 }, fps: 30, maximumDuration: "10s" },
+      scenes: [{ id: "demo", type: "video", source: "demo.mov", trim: { in: "0s", out: "4s", outt: "5s" } }],
+      output: { file: "out.mp4" },
+    })).toThrow();
   });
 
   it("rejects transcript sidecars attached to unknown scenes", () => {

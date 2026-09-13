@@ -10,8 +10,10 @@ if (!manifestPath) {
   process.exitCode = 1;
 } else {
   try {
-    const project = await loadProject(manifestPath);
-    serveStdio(() => createIntentCutMcpServer(project), {
+    // Fail fast on an invalid manifest, then re-read it on every tool call so
+    // proposals are always validated against the manifest as it is now.
+    await loadProject(manifestPath);
+    serveStdio(() => createIntentCutMcpServer(() => loadProject(manifestPath)), {
       onerror: (error) => console.error(`IntentCut MCP error: ${error.message}`),
     });
   } catch (error) {

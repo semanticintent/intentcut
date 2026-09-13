@@ -32,7 +32,43 @@ async function request(transport: InMemoryTransport, message: JSONRPCMessage): P
   });
 }
 
+async function connected(server: ReturnType<typeof createIntentCutMcpServer>): Promise<InMemoryTransport> {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await clientTransport.start();
+  await server.connect(serverTransport);
+  await request(clientTransport, {
+    jsonrpc: "2.0", id: 1, method: "initialize",
+    params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "intentcut-test", version: "1" } },
+  });
+  await clientTransport.send({ jsonrpc: "2.0", method: "notifications/initialized" });
+  return clientTransport;
+}
+
 describe("bounded MCP adapter", () => {
+  it("re-reads the project on every call so an edited manifest invalidates stale proposals", async () => {
+    let current = project();
+    const server = createIntentCutMcpServer(async () => current);
+    const client = await connected(server);
+    try {
+      const staleRevision = createAgentProjectContext(current).project.revision;
+      current = { ...current, manifest: { ...current.manifest, project: { ...current.manifest.project, title: "Edited on disk" } } };
+      const context = await request(client, { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "intentcut_project_context", arguments: {} } });
+      expect(context).toHaveProperty("result.structuredContent.context.project.title", "Edited on disk");
+      const validation = await request(client, {
+        jsonrpc: "2.0", id: 3, method: "tools/call",
+        params: { name: "intentcut_validate_edit_proposal", arguments: { proposal: {
+          kind: "intentcut-edit-proposal", version: 1, expectedRevision: staleRevision,
+          summary: "Stale proposal.", operations: [{ id: "speed-demo", operation: "scene.set-speed", sceneId: "demo", speed: 2 }],
+          authority: { state: "proposed-only", applied: false },
+        } } },
+      });
+      expect(validation).toHaveProperty("result.structuredContent.validation.valid", false);
+    } finally {
+      await server.close();
+      await client.close();
+    }
+  });
+
   it("returns the same read-only context as the provider-neutral API", () => {
     const current = project();
     expect(readProjectContextTool(current).structuredContent).toEqual({ context: createAgentProjectContext(current) });

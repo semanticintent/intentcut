@@ -3,7 +3,7 @@ import path from "node:path";
 import { formatDuration } from "./duration.js";
 import { inspectMedia } from "./inspect.js";
 import type { LoadedProject } from "./manifest.js";
-import { resolveProjectPath } from "./manifest.js";
+import { isWithin, resolveProjectPath } from "./manifest.js";
 import { runProcess } from "./process.js";
 import type { TimelinePlan } from "./timeline.js";
 import type { NarrationPlan } from "./narration.js";
@@ -140,6 +140,16 @@ export async function checkBuild(
       actual: syntheticCount === 0 ? "human-final" : `${syntheticCount} synthetic-prototype section(s)`,
       expected: final ? "human-final" : "prototype or human-final",
     });
+    if (narrationPlan && "sections" in narration) {
+      const generatedDirectory = resolveProjectPath(project, narration.generatedDirectory);
+      const relabelled = narrationPlan.sections.filter((section) => section.mode === "human-final" && isWithin(generatedDirectory, section.audioPath));
+      checks.push({
+        name: "Human-final sources",
+        passed: relabelled.length === 0,
+        actual: relabelled.length === 0 ? "outside generated narration" : `${relabelled.map((section) => section.id).join(", ")} use generated audio`,
+        expected: "no human-final section uses generated temporary audio",
+      });
+    }
     if (narrationPlan) {
       checks.push({
         name: "Narration timing",
