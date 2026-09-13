@@ -28,7 +28,7 @@ async function fixture() {
   await writeFile(source, "approved release media");
   const report: BuildReport = { project: "Publication", output: source, generatedAt: "2026-09-03T00:00:00.000Z", mode: "final", passed: true, checks: [] };
   const candidate = await createReleaseCandidate(current, report);
-  const approval = await approveReleaseCandidate(current, candidate, "Michael", releaseCandidateToken(candidate), new Date("2026-09-03T20:00:00.000Z"));
+  const approval = await approveReleaseCandidate(current, candidate, report, "Michael", releaseCandidateToken(candidate), new Date("2026-09-03T20:00:00.000Z"));
   const sealed = await sealApprovedRelease(current, candidate, approval, new Date("2026-09-03T21:00:00.000Z"));
   return { directory, project: current, release: sealed.receipt, releaseArtifact: sealed.artifact };
 }

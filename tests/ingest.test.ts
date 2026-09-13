@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -61,6 +61,27 @@ describe("captured recording ingestion", () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "intentcut-ingest-"));
     await expect(ingestCapturedRecording(project(directory), receipt("relative.mov"))).rejects.toThrow("must be absolute");
     await expect(ingestCapturedRecording(project(directory), receipt(path.join(directory, "missing.mov")))).rejects.toThrow("does not exist");
+  });
+
+  it("refuses destinations outside the project, lexically or through a symlinked directory", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "intentcut-ingest-"));
+    const outside = await mkdtemp(path.join(os.tmpdir(), "intentcut-outside-"));
+    const captured = path.join(directory, "obs.mov");
+    await writeFile(captured, "recording");
+
+    const escaping = project(directory);
+    escaping.manifest.scenes = [{ id: "demo", type: "video", source: "../escaped/demo.mov", speed: 1 }];
+    await expect(ingestCapturedRecording(escaping, { ...receipt(captured), expectedSource: "../escaped/demo.mov" })).rejects.toThrow("outside the project");
+
+    await symlink(outside, path.join(directory, "recordings"));
+    await expect(ingestCapturedRecording(project(directory), receipt(captured))).rejects.toThrow("resolves outside the project");
+  });
+
+  it("only ingests video files", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "intentcut-ingest-"));
+    const notVideo = path.join(directory, "hosts");
+    await writeFile(notVideo, "127.0.0.1 localhost");
+    await expect(ingestCapturedRecording(project(directory), receipt(notVideo))).rejects.toThrow("must be a video file");
   });
 
   it("loads only strict captured-uningested receipt JSON", async () => {

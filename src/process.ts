@@ -11,6 +11,8 @@ export interface BinaryProcessResult {
 export interface RunProcessOptions {
   onStderr?: (chunk: string) => void;
   encoding?: "utf8" | "buffer";
+  /** Kill the process and reject after this many milliseconds. Default: no limit (renders can be long). */
+  timeoutMilliseconds?: number;
 }
 
 export function runProcess(
@@ -44,8 +46,16 @@ export function runProcess(
       stderr += chunk;
       options.onStderr?.(chunk);
     });
-    child.on("error", reject);
+    const timer = options.timeoutMilliseconds === undefined ? undefined : setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error(`${command} timed out after ${options.timeoutMilliseconds}ms.`));
+    }, options.timeoutMilliseconds);
+    child.on("error", (error) => {
+      if (timer) clearTimeout(timer);
+      reject(error);
+    });
     child.on("close", (code) => {
+      if (timer) clearTimeout(timer);
       if (code !== 0) {
         reject(new Error(`${command} exited with code ${code}: ${stderr.trim()}`));
         return;

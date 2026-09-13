@@ -45,7 +45,11 @@ export interface AgentProjectContext {
 }
 
 function revisionFor(project: LoadedProject): string {
-  return `sha256:${createHash("sha256").update(JSON.stringify(project.manifest)).digest("hex")}`;
+  // The parsed manifest (strict: unknown keys are rejected at load, never silently
+  // dropped) plus digests of referenced intent files such as narration scripts.
+  const content = project.contentDigests && Object.keys(project.contentDigests).length > 0 ? project.contentDigests : undefined;
+  const subject = content ? { manifest: project.manifest, content } : project.manifest;
+  return `sha256:${createHash("sha256").update(JSON.stringify(subject)).digest("hex")}`;
 }
 
 export function createAgentProjectContext(project: LoadedProject): AgentProjectContext {

@@ -51,7 +51,8 @@ export async function generateTemporaryNarration(project: LoadedProject): Promis
     const argumentsList: string[] = [];
     if (section.voice) argumentsList.push("-v", section.voice);
     if (section.rate) argumentsList.push("-r", String(section.rate));
-    argumentsList.push("-o", outputPath, script);
+    // Read the script from its file rather than argv, so text beginning with "-" is never parsed as an option.
+    argumentsList.push("-o", outputPath, "-f", scriptPath);
     await runProcess("say", argumentsList);
     generated.push(outputPath);
   }

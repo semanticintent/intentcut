@@ -27,7 +27,14 @@ export function validateEditProposalTool(project: LoadedProject, proposal: unkno
   return result("validation", validateAgentEditProposal(project, proposal));
 }
 
-export function createIntentCutMcpServer(project: LoadedProject): McpServer {
+/** A fixed project (tests, embedding) or a loader re-read on every call. */
+export type ProjectSource = LoadedProject | (() => Promise<LoadedProject>);
+
+function currentProject(source: ProjectSource): Promise<LoadedProject> {
+  return typeof source === "function" ? source() : Promise.resolve(source);
+}
+
+export function createIntentCutMcpServer(source: ProjectSource): McpServer {
   const server = new McpServer(
     { name: "intentcut", version: "0.0.0" },
     {
@@ -48,7 +55,7 @@ export function createIntentCutMcpServer(project: LoadedProject): McpServer {
       outputSchema: z.object({ context: z.unknown() }),
       annotations: readOnlyAnnotations,
     },
-    async () => readProjectContextTool(project),
+    async () => readProjectContextTool(await currentProject(source)),
   );
 
   server.registerTool(
@@ -60,7 +67,7 @@ export function createIntentCutMcpServer(project: LoadedProject): McpServer {
       outputSchema: z.object({ validation: z.unknown() }),
       annotations: readOnlyAnnotations,
     },
-    async ({ proposal }) => validateEditProposalTool(project, proposal),
+    async ({ proposal }) => validateEditProposalTool(await currentProject(source), proposal),
   );
 
   return server;

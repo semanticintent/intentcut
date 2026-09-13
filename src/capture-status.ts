@@ -53,7 +53,7 @@ async function exists(candidate: string): Promise<boolean> {
 
 async function commandVersion(command: string): Promise<string | undefined> {
   try {
-    const { stdout } = await runProcess(command, ["-version"]);
+    const { stdout } = await runProcess(command, ["-version"], { timeoutMilliseconds: 5_000 });
     const match = stdout.split("\n")[0]?.match(/version\s+([^\s]+)/i);
     return match?.[1];
   } catch {
@@ -82,11 +82,10 @@ async function detectMacObs(): Promise<{ applicationPath?: string; version?: str
 async function detectCommandObs(): Promise<{ applicationPath?: string; version?: string }> {
   const locator = process.platform === "win32" ? "where" : "which";
   try {
-    const { stdout } = await runProcess(locator, [process.platform === "win32" ? "obs64.exe" : "obs"]);
+    const { stdout } = await runProcess(locator, [process.platform === "win32" ? "obs64.exe" : "obs"], { timeoutMilliseconds: 5_000 });
     const applicationPath = stdout.split(/\r?\n/).find(Boolean)?.trim();
-    if (!applicationPath) return {};
-    const version = await commandVersion(applicationPath);
-    return { applicationPath, ...(version ? { version } : {}) };
+    // Locate only. Executing the OBS binary (even with a version flag) can launch the application.
+    return applicationPath ? { applicationPath } : {};
   } catch {
     return {};
   }
