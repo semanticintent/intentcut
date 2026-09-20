@@ -38,12 +38,16 @@ do. Prose, not bullet points.
 
 Some choices here look like taste and are not. The clearest is narration:
 rendering the same manifest twice produces byte-identical output, and narration
-is an input to the render, so a speech synthesiser that samples would break the
-central claim. That rules out most of the models with the best scores and the
-most useful features. If you are changing anything in that area, read
-[docs/PROGRESS.md](docs/PROGRESS.md) first — a change that improves how the
-output sounds while making it unreproducible will pass every check in the suite
-and still be wrong.
+is an input to the render. Rendering never synthesises, so a voice that samples
+does not break that on its own — regenerating with one does. It turns the
+generated audio from something disposable into the only copy of something
+unreproducible, which changes what a production has to keep.
+
+So if you are changing anything in that area, decide whether the narration audio
+is disposable or kept, and make the repository agree with the answer. Read
+[docs/PROGRESS.md](docs/PROGRESS.md) first: a change that improves how the output
+sounds while making it unreproducible will pass every check in the suite and
+still be wrong.
 
 ## Scope
 

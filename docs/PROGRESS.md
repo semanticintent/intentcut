@@ -940,3 +940,33 @@ A missing prerequisite now explains itself as well. FFmpeg arriving as a bare
 ENOENT naming only the binary reads as a fault in IntentCut rather than
 something absent from the machine, which is a poor first impression for a
 dependency the README does state.
+
+### 2026-09-20 — Correcting the entry above: synthesis is upstream of the compile
+
+The entry on choosing a voice states the constraint too strongly, and the
+precise version is more useful than the one it replaces.
+
+Rendering never synthesises. Generating narration is a separate command that
+writes audio files, and rendering consumes them. So the byte-identical output is
+a property of the compile, and synthesis happens before it. A synthesiser that
+samples does not break reproducibility on its own; regenerating with one does.
+
+Which makes it a question about artifacts rather than architecture. With a
+deterministic voice, the generated audio is disposable — lose it, generate it
+again, get the same bytes, and the repository is right not to keep it. With a
+sampling voice the same audio becomes precious and unreproducible, so it has to
+be kept, and a production repository that leaves it untracked is quietly holding
+the only copy of something it believes it can regenerate. Losing it or
+regenerating it yields a different film, and nothing says so until a media hash
+invalidates an approval that was made in good faith.
+
+So the rule is narrower than "do not use a model that samples". It is: decide
+whether the narration audio is disposable or kept, and make the repository agree
+with the answer. A deterministic voice remains the default because it is the
+option where that question has a boring answer.
+
+This also settles where synthesis can happen. Narration need not be produced on
+the machine that compiles: generate it wherever the model fits, bring back the
+audio, and the compile stays reproducible because it is consuming a file rather
+than a model. That is worth knowing, because the models worth wanting are
+consistently larger than a laptop.
