@@ -60,7 +60,11 @@ and publication authority.
 
 The first proving experiment successfully reconstructed the completed
 Orbweaver WebMCP Challenge sequence from a declarative manifest and its existing
-production assets.
+production assets. A second experiment ran the chain forward instead: a new
+production was declared as a manifest, capture briefs, and narration scripts
+before any footage existed, and compiled against placeholder media standing in
+for each declared take. Rendering the same manifest repeatedly produces
+byte-identical output.
 
 ## Current commands
 
@@ -88,6 +92,7 @@ npm run dev -- render intentcut.yaml --final
 npm run dev -- check intentcut.yaml [--final]
 
 # Release and publication (human-invoked)
+# Artifact paths resolve against the project first, then your working directory.
 npm run dev -- candidate intentcut.yaml
 npm run dev -- approve intentcut.yaml reports/release-candidate-<token>.json --by "Your Name" --confirm <token>
 npm run dev -- seal intentcut.yaml reports/release-candidate-<token>.json reports/release-approval-<token>.json
@@ -108,6 +113,11 @@ scenes:
         transition: 1s
         zoom: 1.35
         center: { x: 0.75, y: 0.55 }
+      - at: 12s
+        duration: 4s
+        transition: 1s
+        zoom: 1.5
+        center: { x: 0.35, y: 0.5 }
 
 annotations:
   - id: focus-meaning
@@ -122,8 +132,12 @@ output:
     file: reports/captions.vtt
 ```
 
-Camera moves are bounded to their scene and annotations are rendered as
-designed image overlays, so they do not depend on optional FFmpeg text filters.
+A video scene may declare up to eight focus movements. They must be ordered and
+must not overlap, and each is bounded to its scene; between movements the frame
+returns to rest. Annotations are rendered as designed image overlays, so they do
+not depend on optional FFmpeg text filters — which are absent from some FFmpeg
+builds.
+
 Sectioned narration can also compile into a portable WebVTT sidecar.
 
 Source analysis produces deterministic, timecoded contact sheets without

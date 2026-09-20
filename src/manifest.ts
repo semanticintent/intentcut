@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, parseDocument } from "yaml";
+import { parseDuration } from "./duration.js";
 import { z } from "zod";
 
 const durationSchema = z.string().regex(
@@ -41,8 +42,24 @@ const videoSceneSchema = baseSceneSchema.extend({
       x: z.number().min(0).max(1),
       y: z.number().min(0).max(1),
     }).strict(),
-  }).strict()).max(1, "Milestone 4 supports one focus movement per video scene.").optional(),
-}).strict();
+  }).strict()).max(8, "A video scene supports at most eight focus movements.").optional(),
+}).strict().superRefine((scene, context) => {
+  // Focus movements are compiled into a single ordered zoompan expression, so they
+  // must be declared in order and must not overlap one another.
+  let previousEnd = -1;
+  scene.camera?.forEach((focus, index) => {
+    const start = parseDuration(focus.at);
+    const end = start + parseDuration(focus.duration) + (2 * parseDuration(focus.transition));
+    if (start < previousEnd) {
+      context.addIssue({
+        code: "custom",
+        message: "Focus movements must be declared in order and must not overlap the previous movement.",
+        path: ["camera", index, "at"],
+      });
+    }
+    previousEnd = end;
+  });
+});
 
 const annotationSchema = z.object({
   id: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/),
@@ -271,11 +288,45 @@ async function referencedContentDigests(manifest: ProjectManifest, baseDirectory
   return digests;
 }
 
+/**
+ * Zod reports a machine-readable issue list. A manifest author needs the file it came
+ * from and a field path they can find by eye, so render one line per issue instead.
+ */
+export function formatManifestIssues(error: z.ZodError, manifestPath: string): string {
+  const lines = error.issues.map((entry) => {
+    const field = entry.path.reduce<string>((joined, segment) => (
+      typeof segment === "number" ? `${joined}[${segment}]` : joined ? `${joined}.${String(segment)}` : String(segment)
+    ), "");
+    return `  ${field || "(root)"} — ${entry.message}`;
+  });
+  return [`${manifestPath} is not a valid IntentCut manifest:`, ...lines].join("\n");
+}
+
+function parseManifest(parsed: unknown, manifestPath: string): ProjectManifest {
+  const result = projectManifestSchema.safeParse(parsed);
+  if (result.success) return result.data;
+  throw new Error(formatManifestIssues(result.error, manifestPath));
+}
+
+/**
+ * Release and proposal artifacts live beside the project, but the CLI is usually run
+ * from an IntentCut clone, so a bare `reports/...` argument would resolve against the
+ * wrong directory. Prefer the project, fall back to the caller's own working directory.
+ */
+export async function resolveArtifactPath(project: LoadedProject, candidate: string): Promise<string> {
+  if (path.isAbsolute(candidate)) return candidate;
+  const projectRelative = path.resolve(project.baseDirectory, candidate);
+  if (await stat(projectRelative).then((entry) => entry.isFile()).catch(() => false)) return projectRelative;
+  const workingRelative = path.resolve(candidate);
+  if (await stat(workingRelative).then((entry) => entry.isFile()).catch(() => false)) return workingRelative;
+  throw new Error(`File not found, in the project or the working directory: ${candidate}\n  tried ${projectRelative}\n  tried ${workingRelative}`);
+}
+
 export async function loadProject(manifestPath: string): Promise<LoadedProject> {
   const absolutePath = path.resolve(manifestPath);
   const source = await readFile(absolutePath, "utf8");
   const parsed = parseYaml(source) as unknown;
-  const manifest = projectManifestSchema.parse(parsed);
+  const manifest = parseManifest(parsed, absolutePath);
   const baseDirectory = path.dirname(absolutePath);
 
   return {
@@ -304,7 +355,7 @@ export async function replaceNarrationSection(
   const absolutePath = path.resolve(manifestPath);
   const text = await readFile(absolutePath, "utf8");
   const document = parseDocument(text);
-  const parsed = projectManifestSchema.parse(document.toJS() as unknown);
+  const parsed = parseManifest(document.toJS() as unknown, absolutePath);
   const narration = parsed.audio?.narration;
 
   if (!narration || !("sections" in narration)) {
@@ -327,6 +378,6 @@ export async function replaceNarrationSection(
   document.setIn(["audio", "narration", "sections", index, "mode"], "human-final");
   document.setIn(["audio", "narration", "sections", index, "source"], source);
   const updated = document.toString({ lineWidth: 0 });
-  projectManifestSchema.parse(parseYaml(updated) as unknown);
+  parseManifest(parseYaml(updated) as unknown, absolutePath);
   await writeFile(absolutePath, updated, "utf8");
 }

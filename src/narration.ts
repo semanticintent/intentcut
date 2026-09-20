@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { formatDuration, parseDuration } from "./duration.js";
 import { inspectMedia } from "./inspect.js";
@@ -59,6 +59,26 @@ export async function generateTemporaryNarration(project: LoadedProject): Promis
   return generated;
 }
 
+/**
+ * Narration audio is probed by ffprobe, whose failure text says nothing about how to
+ * produce the missing file. A freshly scaffolded project has scripts but no audio yet,
+ * so name the command that makes it rather than surfacing the probe error.
+ */
+async function assertSectionAudioExists(section: NarrationSection, audioPath: string): Promise<void> {
+  const exists = await stat(audioPath).then((entry) => entry.isFile()).catch(() => false);
+  if (exists) return;
+  if (section.mode === "human-final") {
+    throw new Error(
+      `Narration section "${section.id}" is marked human-final but its source is missing: ${audioPath}\n`
+      + `Record it, then run: intentcut replace-voice <manifest> ${section.id} <path-to-recording>`,
+    );
+  }
+  throw new Error(
+    `Narration section "${section.id}" has no generated audio yet: ${audioPath}\n`
+    + "Run: intentcut narrate <manifest> --temporary",
+  );
+}
+
 function timelineScene(timeline: TimelinePlan, sceneId: string): TimelineScene {
   const scene = timeline.scenes.find((candidate) => candidate.id === sceneId);
   if (!scene) throw new Error(`Unknown timeline scene "${sceneId}".`);
@@ -93,6 +113,7 @@ export async function planNarration(
       : current.scene.endMilliseconds;
     const capacityMilliseconds = boundary - current.startMilliseconds;
     const audioPath = sectionAudioPath(project, current.section);
+    await assertSectionAudioExists(current.section, audioPath);
     const inspection = await inspectMedia(current.section.id, audioPath);
     sections.push({
       id: current.section.id,

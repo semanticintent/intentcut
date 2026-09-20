@@ -107,12 +107,13 @@ export function compileTimeline(
   project.manifest.scenes.forEach((scene, index) => {
     if (scene.type !== "video" || !scene.camera?.length) return;
     const timelineScene = scenes[index];
-    const focus = scene.camera[0];
-    if (!timelineScene || !focus) return;
-    const extent = parseDuration(focus.at) + parseDuration(focus.duration) + (2 * parseDuration(focus.transition));
-    if (extent > timelineScene.durationMilliseconds) {
-      throw new Error(`Camera movement in scene "${scene.id}" exceeds the scene duration.`);
-    }
+    if (!timelineScene) return;
+    scene.camera.forEach((focus) => {
+      const extent = parseDuration(focus.at) + parseDuration(focus.duration) + (2 * parseDuration(focus.transition));
+      if (extent > timelineScene.durationMilliseconds) {
+        throw new Error(`Camera movement in scene "${scene.id}" exceeds the scene duration.`);
+      }
+    });
   });
 
   return {
