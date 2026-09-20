@@ -3,7 +3,7 @@
 import { formatDuration } from "./duration.js";
 import { checkBuild, formatBuildReport } from "./check.js";
 import { inspectProjectMedia } from "./inspect.js";
-import { loadProject, replaceNarrationSection } from "./manifest.js";
+import { loadProject, replaceNarrationSection, resolveArtifactPath } from "./manifest.js";
 import { formatNarrationPlan, generateTemporaryNarration, planNarration, writeNarrationReport } from "./narration.js";
 import { compileTimeline } from "./timeline.js";
 import { createRenderPlan, renderPreview } from "./render.js";
@@ -82,7 +82,7 @@ async function main(): Promise<void> {
   if (command === "validate-proposal") {
     const proposalPath = process.argv[4];
     if (!proposalPath) throw new Error("validate-proposal requires an edit proposal JSON file.");
-    const validation = validateAgentEditProposal(project, await loadAgentEditProposal(proposalPath));
+    const validation = validateAgentEditProposal(project, await loadAgentEditProposal(await resolveArtifactPath(project, proposalPath)));
     console.log(JSON.stringify(validation, null, 2));
     if (!validation.valid) process.exitCode = 2;
     return;
@@ -94,8 +94,8 @@ async function main(): Promise<void> {
     if (!candidatePath || !approvalPath) throw new Error("seal requires candidate and approval JSON files.");
     const result = await sealApprovedRelease(
       project,
-      await loadReleaseCandidate(candidatePath),
-      await loadReleaseApproval(approvalPath),
+      await loadReleaseCandidate(await resolveArtifactPath(project, candidatePath)),
+      await loadReleaseApproval(await resolveArtifactPath(project, approvalPath)),
     );
     console.log(`SEALED  ${result.receipt.releaseId}`);
     console.log(`        ${result.receipt.media.sha256} · ${result.receipt.media.bytes} bytes`);
@@ -118,7 +118,7 @@ async function main(): Promise<void> {
     if (!receiptPath || adapter !== "directory" || !target || !authorizedBy || !confirmation) {
       throw new Error("authorize-publication requires a release receipt, --adapter directory, --to <directory>, --by <name>, and --confirm <release-id>.");
     }
-    const release = await loadReleaseReceipt(receiptPath);
+    const release = await loadReleaseReceipt(await resolveArtifactPath(project, receiptPath));
     const intent = await authorizePublication(project, release, target, authorizedBy, confirmation);
     const output = await writePublicationIntent(project, release, intent);
     console.log(`AUTHORIZED  ${intent.releaseId} → ${intent.adapter.id}`);
@@ -135,8 +135,8 @@ async function main(): Promise<void> {
     if (!receiptPath || !intentPath) throw new Error("publish requires release receipt and publication intent JSON files.");
     const result = await publishAuthorizedRelease(
       project,
-      await loadReleaseReceipt(receiptPath),
-      await loadPublicationIntent(intentPath),
+      await loadReleaseReceipt(await resolveArtifactPath(project, receiptPath)),
+      await loadPublicationIntent(await resolveArtifactPath(project, intentPath)),
       new DirectoryPublicationAdapter(),
     );
     console.log(`PUBLISHED  ${result.receipt.releaseId} → ${result.receipt.adapter.id}`);
@@ -170,7 +170,7 @@ async function main(): Promise<void> {
   if (command === "ingest") {
     const receiptPath = process.argv[4];
     if (!receiptPath) throw new Error("ingest requires a captured recording receipt JSON file.");
-    const receipt = await loadRecordingReceipt(receiptPath);
+    const receipt = await loadRecordingReceipt(await resolveArtifactPath(project, receiptPath));
     const result = await ingestCapturedRecording(project, receipt);
     console.log(`PASS  Ingested ${result.sceneId}`);
     console.log(`      ${result.capturedSource}`);
@@ -234,10 +234,16 @@ async function main(): Promise<void> {
     if (!candidatePath || !approvedBy || !confirmation) {
       throw new Error("approve requires a candidate JSON file, --by <name>, and --confirm <token>.");
     }
+    // Load and check the cheap arguments first: a full final-mode QA pass is expensive,
+    // and a mistyped path or token should not cost one.
+    const candidate = await loadReleaseCandidate(await resolveArtifactPath(project, candidatePath));
+    if (confirmation !== releaseCandidateToken(candidate)) {
+      throw new Error("Approval token does not match this exact release candidate.");
+    }
     // Re-run final QA now; never trust the pass recorded in the candidate file.
     const report = await checkBuild(project, timeline, narrationPlan, true, captionPlan);
     console.log(formatBuildReport(report));
-    const approval = await approveReleaseCandidate(project, await loadReleaseCandidate(candidatePath), report, approvedBy, confirmation);
+    const approval = await approveReleaseCandidate(project, candidate, report, approvedBy, confirmation);
     const output = await writeReleaseApproval(project, approval);
     console.log(`\nAPPROVED  ${approval.project}`);
     console.log(`          ${approval.approvedBy} · ${approval.approvedAt}`);

@@ -766,3 +766,37 @@ documentation now says so. A self-contained quickstart replaces examples that
 only rendered on the original workstation, and the full release path —
 render, candidate, approve, seal, authorize, publish — was re-run end to end
 on it, including each refusal.
+
+### 2026-09-20 — First forward production: a dry run before the shoot
+
+Orbweaver proved the compiler by reconstructing a finished video from media that
+already existed. It could not prove the workflow, because every editorial
+decision had already been made. The first forward test built a new production —
+Sepiola's week-one demo — as a manifest, capture briefs, and narration scripts
+with no footage at all, then ran the whole chain against generated placeholder
+media standing in for each declared take.
+
+The chain held: validate, brief, capture-status, inspect, plan, analyze,
+narrate, render, check, candidate, approve, seal, authorize, publish, twice,
+with an edit between cycles. Rendering the same manifest three times produced
+byte-identical output, so "same manifest, same bytes" is now measured rather
+than asserted. That also narrows an earlier known issue: re-rendering a preview
+does not invalidate an unsealed approval, because the bytes do not change. Only
+an interrupted render does.
+
+Five defects surfaced, all of them in the parts a reconstruction could not
+reach. A video scene accepted only one focus movement, which a real two-minute
+demo exhausts immediately; scenes now accept up to eight ordered,
+non-overlapping movements, compiled into a single zoompan expression, and the
+proposal vocabulary takes the same list. A scaffolded project could not run
+`plan`, because narration audio did not exist yet and ffprobe's failure named no
+remedy; missing narration now names the command that produces it. Release
+artifacts resolved against the working directory, so the documented relative
+paths could not work when running from a clone; they now resolve against the
+project first. Approval re-ran a full final-mode QA pass before checking its own
+arguments, so a mistyped token cost a render's worth of analysis; cheap checks
+come first. Manifest errors printed raw validation JSON; they now name the file
+and a field path an author can find by eye.
+
+The shoot is the only remaining variable. The briefs were written before the
+footage, which is the order the concept always intended.

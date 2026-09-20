@@ -64,19 +64,37 @@ function videoCameraFilter(
   width: number,
   height: number,
 ): string {
-  const focus = scene.camera?.[0];
-  if (!focus) return "";
-  const start = Math.round((parseDuration(focus.at) / 1_000) * fps);
-  const transition = Math.max(1, Math.round((parseDuration(focus.transition) / 1_000) * fps));
-  const hold = Math.max(1, Math.round((parseDuration(focus.duration) / 1_000) * fps));
-  const peakStart = start + transition;
-  const peakEnd = peakStart + hold;
-  const finish = peakEnd + transition;
-  const delta = focus.zoom - 1;
-  const zoom = `if(lt(on,${start}),1,if(lt(on,${peakStart}),1+${delta}*(on-${start})/${transition},if(lt(on,${peakEnd}),${focus.zoom},if(lt(on,${finish}),${focus.zoom}-${delta}*(on-${peakEnd})/${transition},1))))`;
-  const x = `max(0,min(iw-iw/zoom,${focus.center.x}*iw-iw/(2*zoom)))`;
-  const y = `max(0,min(ih-ih/zoom,${focus.center.y}*ih-ih/(2*zoom)))`;
-  return `,zoompan=z='${zoom}':x='${x}':y='${y}':d=1:s=${width}x${height}:fps=${fps}`;
+  const moves = (scene.camera ?? []).map((focus) => {
+    const start = Math.round((parseDuration(focus.at) / 1_000) * fps);
+    const transition = Math.max(1, Math.round((parseDuration(focus.transition) / 1_000) * fps));
+    const hold = Math.max(1, Math.round((parseDuration(focus.duration) / 1_000) * fps));
+    const peakStart = start + transition;
+    const peakEnd = peakStart + hold;
+    return { focus, start, transition, peakStart, peakEnd, finish: peakEnd + transition };
+  });
+  if (moves.length === 0) return "";
+
+  type Move = (typeof moves)[number];
+  /**
+   * Ordered, non-overlapping movements compile into one nested conditional: outside
+   * every movement the frame sits at zoom 1, where the pan expressions resolve to 0
+   * whatever the declared centre is, so a single fallback covers all the gaps.
+   */
+  const chain = (inside: (move: Move) => string, outside: string): string =>
+    moves.reduceRight(
+      (rest, move) => `if(lt(on,${move.start}),${outside},if(lt(on,${move.finish}),${inside(move)},${rest}))`,
+      outside,
+    );
+
+  const zoom = chain((move) => {
+    const delta = move.focus.zoom - 1;
+    return `if(lt(on,${move.peakStart}),1+${delta}*(on-${move.start})/${move.transition},`
+      + `if(lt(on,${move.peakEnd}),${move.focus.zoom},`
+      + `${move.focus.zoom}-${delta}*(on-${move.peakEnd})/${move.transition}))`;
+  }, "1");
+  const x = chain((move) => `${move.focus.center.x}*iw-iw/(2*zoom)`, "0");
+  const y = chain((move) => `${move.focus.center.y}*ih-ih/(2*zoom)`, "0");
+  return `,zoompan=z='${zoom}':x='max(0,min(iw-iw/zoom,${x}))':y='max(0,min(ih-ih/zoom,${y}))':d=1:s=${width}x${height}:fps=${fps}`;
 }
 
 function sceneInputArguments(scene: ProjectScene, project: LoadedProject, fps: number): string[] {

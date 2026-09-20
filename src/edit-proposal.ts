@@ -36,7 +36,8 @@ const setCamera = z.object({
   id: identifier,
   operation: z.literal("scene.set-camera"),
   sceneId: identifier,
-  camera: camera.nullable(),
+  // An ordered list, matching the manifest; null clears every movement on the scene.
+  camera: z.array(camera).max(8).nullable(),
 }).strict();
 
 const annotation = z.object({
@@ -112,6 +113,16 @@ function validateOperation(project: LoadedProject, operation: AgentEditOperation
     const scene = project.manifest.scenes.find((candidate) => candidate.id === operation.sceneId);
     if (!scene) return [issue([...prefix, "sceneId"], `Unknown scene "${operation.sceneId}".`)];
     if (scene.type !== "video") return [issue([...prefix, "sceneId"], `Scene "${operation.sceneId}" is not a video scene.`)];
+    if (operation.operation === "scene.set-camera" && operation.camera) {
+      let previousEnd = -1;
+      operation.camera.forEach((focus, cameraIndex) => {
+        const start = parseDuration(focus.at);
+        if (start < previousEnd) {
+          issues.push(issue([...prefix, "camera", cameraIndex, "at"], "Focus movements must be ordered and must not overlap."));
+        }
+        previousEnd = start + parseDuration(focus.duration) + (2 * parseDuration(focus.transition));
+      });
+    }
     if (operation.operation === "scene.set-trim") {
       const input = operation.trim.in ?? scene.trim?.in ?? "0s";
       const output = operation.trim.out ?? scene.trim?.out;
