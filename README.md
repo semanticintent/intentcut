@@ -140,6 +140,25 @@ builds.
 
 Sectioned narration can also compile into a portable WebVTT sidecar.
 
+A manifest is source: it gets shared, copied between machines, and written by
+tools. So how far it may reach is bounded when it loads. A production only ever
+writes inside itself — the render, the reports, the captions, and generated
+narration cannot be pointed elsewhere, through `../` or through a symlinked
+directory, and there is no setting that permits it.
+
+Reading is different. Media often lives outside the production that edits it, on
+an external drive or in a sibling repository, and that is legitimate — but it is
+a decision, not a side effect of a relative path. Outside reads are refused
+until the manifest states them:
+
+```yaml
+sources:
+  outsideProject: allow
+```
+
+Without it, loading fails and names every file that reaches outside, so one pass
+fixes them all.
+
 Source analysis produces deterministic, timecoded contact sheets without
 changing the manifest or timeline. Sampling is configurable in the manifest:
 
