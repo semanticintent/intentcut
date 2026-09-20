@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, realpath, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, parseDocument } from "yaml";
 import { parseDuration } from "./duration.js";
@@ -148,6 +148,16 @@ const sectionedNarrationSchema = z.object({
 
 export const projectManifestSchema = z.object({
   version: z.literal(1),
+  /**
+   * Media often lives outside the production that edits it — an external drive, a
+   * sibling repository, a shared library. Reading it is legitimate, but it should be a
+   * stated decision rather than a side effect of a relative path, so it is refused
+   * until declared. Writes are never declarable: a production only ever writes inside
+   * itself, and every example here already does.
+   */
+  sources: z.object({
+    outsideProject: z.enum(["refuse", "allow"]).default("refuse"),
+  }).strict().default({ outsideProject: "refuse" }),
   project: z.object({
     title: z.string().min(1),
     resolution: z.object({
@@ -362,12 +372,94 @@ export async function resolveArtifactPath(project: LoadedProject, candidate: str
   throw new Error(`File not found, in the project or the working directory: ${candidate}\n  tried ${projectRelative}\n  tried ${workingRelative}`);
 }
 
+/**
+ * Refuse a destination that escapes the project, lexically or through a symlinked
+ * directory. Walks up to the nearest existing ancestor, since the destination itself
+ * usually does not exist yet.
+ */
+export async function assertWritesInsideProject(baseDirectory: string, destination: string, label: string): Promise<void> {
+  if (!isWithin(baseDirectory, destination)) {
+    throw new Error(`${label} writes outside the project, which is never allowed: ${destination}`);
+  }
+  const projectRoot = await realpath(baseDirectory).catch(() => baseDirectory);
+  let ancestor = path.dirname(destination);
+  for (;;) {
+    const resolved = await realpath(ancestor).catch((error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      throw error;
+    });
+    if (resolved !== undefined) {
+      if (!isWithin(projectRoot, resolved)) {
+        throw new Error(`${label} resolves outside the project through a link, which is never allowed: ${ancestor}`);
+      }
+      return;
+    }
+    const parent = path.dirname(ancestor);
+    if (parent === ancestor) return;
+    ancestor = parent;
+  }
+}
+
+/** Every path the manifest writes to, with a name a reader can find in the file. */
+function declaredWrites(manifest: ProjectManifest): Array<{ label: string; source: string }> {
+  const writes = [
+    { label: "output.file", source: manifest.output.file },
+    { label: "output.reportDirectory", source: manifest.output.reportDirectory },
+  ];
+  if (manifest.output.captions) writes.push({ label: "output.captions.file", source: manifest.output.captions.file });
+  const narration = manifest.audio?.narration;
+  if (narration && "sections" in narration) {
+    writes.push({ label: "audio.narration.generatedDirectory", source: narration.generatedDirectory });
+  }
+  return writes;
+}
+
+/** Every path the manifest reads from, with a name a reader can find in the file. */
+function declaredReads(manifest: ProjectManifest): Array<{ label: string; source: string }> {
+  const reads = manifest.scenes.map((scene, index) => ({ label: `scenes[${index}].source ("${scene.id}")`, source: scene.source }));
+  const narration = manifest.audio?.narration;
+  if (narration && "sections" in narration) {
+    narration.sections.forEach((section, index) => {
+      reads.push({ label: `audio.narration.sections[${index}].script ("${section.id}")`, source: section.script });
+      if (section.source) reads.push({ label: `audio.narration.sections[${index}].source ("${section.id}")`, source: section.source });
+    });
+  } else if (narration) {
+    reads.push({ label: "audio.narration.source", source: narration.source });
+  }
+  manifest.inspection.transcripts.forEach((transcript, index) => {
+    reads.push({ label: `inspection.transcripts[${index}].source`, source: transcript.source });
+  });
+  return reads;
+}
+
+/**
+ * A manifest is source, and source gets shared, copied between machines, and written by
+ * tools. Left unchecked a relative path can reach anywhere the process can, and FFmpeg
+ * runs with -y. So the reach of a manifest is bounded here, once, at load.
+ */
+export async function assertPathsWithinProject(manifest: ProjectManifest, baseDirectory: string): Promise<void> {
+  for (const { label, source } of declaredWrites(manifest)) {
+    await assertWritesInsideProject(baseDirectory, path.resolve(baseDirectory, source), label);
+  }
+  if (manifest.sources.outsideProject === "allow") return;
+  const escaping = declaredReads(manifest).filter(({ source }) => !isWithin(baseDirectory, path.resolve(baseDirectory, source)));
+  if (escaping.length === 0) return;
+  throw new Error([
+    `This manifest reads ${escaping.length} file(s) from outside its own directory:`,
+    ...escaping.map(({ label, source }) => `  ${label} — ${source}`),
+    "Reading media stored elsewhere is fine, but it has to be a stated decision. Add:",
+    "  sources:",
+    "    outsideProject: allow",
+  ].join("\n"));
+}
+
 export async function loadProject(manifestPath: string): Promise<LoadedProject> {
   const absolutePath = path.resolve(manifestPath);
   const source = await readFile(absolutePath, "utf8");
   const parsed = parseYaml(source) as unknown;
   const manifest = parseManifest(parsed, absolutePath);
   const baseDirectory = path.dirname(absolutePath);
+  await assertPathsWithinProject(manifest, baseDirectory);
 
   return {
     manifest,

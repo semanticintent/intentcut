@@ -863,3 +863,23 @@ cannot without making a request this tool has never made. The claim belongs to
 the person; the binding belongs to the record. Every publication receipt now
 says which adapter moved the bytes — `by-intentcut` or `by-hand` — so a record
 can never imply the tool did something it did not do.
+
+### 2026-09-20 — How far a manifest may reach
+
+Every guarantee in this repository was about what a manifest means. None was
+about where it could point. A scene source of `../../../etc/x.png` and an output
+of `../../escaped.mp4` both validated cleanly, and FFmpeg runs with `-y`, so a
+manifest from anywhere could overwrite a file anywhere the process could reach.
+Ingest and `replace-voice` guarded their own writes carefully; nothing guarded
+the ones the compiler makes.
+
+The split that resolves it was already in the examples. Every example writes
+inside its own directory and three of them read media from outside — the
+Orbweaver reference production edits recordings that live in another repository.
+So writes are bounded absolutely, lexically and through symlinked directories,
+with no setting that relaxes it, and reads are refused until the manifest states
+that it reaches outside. A refusal names every offending path at once rather
+than one per attempt.
+
+The reference productions now declare that reach in a line, which is the
+difference between a property the manifest has and one it merely happens to have.

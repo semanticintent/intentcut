@@ -1,5 +1,10 @@
 version: 1
 
+# This reference production edits media that lives outside the repository, so it
+# states that reach rather than acquiring it through a relative path.
+sources:
+  outsideProject: allow
+
 project:
   title: IntentCut Camera Focus
   resolution:

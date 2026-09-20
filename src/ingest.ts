@@ -1,9 +1,9 @@
 import { constants } from "node:fs";
-import { copyFile, mkdir, readFile, realpath, stat } from "node:fs/promises";
+import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import type { LoadedProject } from "./manifest.js";
-import { isWithin, resolveProjectPath } from "./manifest.js";
+import { assertWritesInsideProject, resolveProjectPath } from "./manifest.js";
 
 export const obsRecordingReceiptSchema = z.object({
   takeId: z.string().min(1),
@@ -26,28 +26,6 @@ export interface RecordingIngestResult {
 }
 
 const RECORDING_EXTENSIONS = new Set([".mov", ".mp4", ".m4v", ".mkv", ".webm", ".flv", ".ts"]);
-
-/** Refuse destinations that escape the project, lexically (../, absolute) or through a symlinked directory. */
-async function assertInsideProject(project: LoadedProject, destination: string): Promise<void> {
-  if (!isWithin(project.baseDirectory, destination)) {
-    throw new Error(`Refusing to ingest outside the project directory: ${destination}`);
-  }
-  const projectRoot = await realpath(project.baseDirectory);
-  let ancestor = path.dirname(destination);
-  for (;;) {
-    const resolved = await realpath(ancestor).catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-      throw error;
-    });
-    if (resolved !== undefined) {
-      if (!isWithin(projectRoot, resolved)) throw new Error(`Refusing to ingest through a directory that resolves outside the project: ${ancestor}`);
-      return;
-    }
-    const parent = path.dirname(ancestor);
-    if (parent === ancestor) return;
-    ancestor = parent;
-  }
-}
 
 export async function loadRecordingReceipt(receiptPath: string): Promise<CapturedRecordingReceipt> {
   const source = await readFile(path.resolve(receiptPath), "utf8");
@@ -80,7 +58,7 @@ export async function ingestCapturedRecording(
     throw new Error(`Captured recording must be a video file (${[...RECORDING_EXTENSIONS].join(", ")}): ${capturedSource}`);
   }
   const projectSource = resolveProjectPath(project, scene.source);
-  await assertInsideProject(project, projectSource);
+  await assertWritesInsideProject(project.baseDirectory, projectSource, `Scene "${validated.sceneId}" source`);
   if (capturedSource === projectSource) {
     throw new Error("Captured recording is already at the declared project source.");
   }
