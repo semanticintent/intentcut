@@ -133,6 +133,12 @@ export async function checkBuild(
       expected: `<= ${(target.truePeak + 0.3).toFixed(2)} dBTP`,
     });
     const narration = project.manifest.audio.narration;
+    /**
+     * Sectioned narration carries its mode per section, so without a plan there is
+     * nothing to read it from. Falling back to zero would report "human-final" and let
+     * a project of prototypes pass a final check; an unanswerable question fails closed.
+     */
+    const sectionedWithoutPlan = "sections" in narration && !narrationPlan;
     const syntheticCount = narrationPlan?.syntheticCount ?? (!("sections" in narration) && narration.mode === "synthetic-prototype" ? 1 : 0);
     const syntheticFinalCount = narrationPlan?.syntheticFinalCount ?? (!("sections" in narration) && narration.mode === "synthetic-final" ? 1 : 0);
     const synthesis = narration.synthesis;
@@ -144,12 +150,16 @@ export async function checkBuild(
       : "undeclared";
     checks.push({
       name: "Narration mode",
-      passed: (!final || syntheticCount === 0) && (syntheticFinalCount === 0 || synthesis !== undefined),
-      actual: syntheticCount > 0
-        ? `${syntheticCount} synthetic-prototype section(s)`
-        : syntheticFinalCount > 0
-          ? `synthetic-final · ${declaredVoice}`
-          : "human-final",
+      passed: !sectionedWithoutPlan
+        && (!final || syntheticCount === 0)
+        && (syntheticFinalCount === 0 || synthesis !== undefined),
+      actual: sectionedWithoutPlan
+        ? "unknown · sectioned narration was not planned"
+        : syntheticCount > 0
+          ? `${syntheticCount} synthetic-prototype section(s)`
+          : syntheticFinalCount > 0
+            ? `synthetic-final · ${declaredVoice}`
+            : "human-final",
       expected: final ? "human-final or declared synthetic-final" : "prototype, human-final, or declared synthetic-final",
     });
     if (narrationPlan && "sections" in narration) {

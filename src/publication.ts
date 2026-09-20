@@ -8,11 +8,21 @@ import { releaseReceiptDigest, releaseReceiptSchema, type ReleaseReceipt } from 
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const releaseId = z.string().regex(/^release-[a-f0-9]{12}$/);
+const adapterId = z.enum(["directory", "external"]);
+
+/**
+ * Who moved the bytes. `directory` copies the artifact itself and can verify what it
+ * wrote; `external` performs no upload at all, and records that a named human published
+ * this exact sealed artifact somewhere they state. Keeping the distinction in the record
+ * stops a receipt implying the tool did something it did not do. Optional, so receipts
+ * written before this existed still parse.
+ */
+const performedBy = z.enum(["by-intentcut", "by-hand"]);
 
 export const publicationIntentSchema = z.object({
   kind: z.literal("intentcut-publication-intent"), version: z.literal(1), project: z.string().min(1),
   releaseId, releaseReceiptDigest: digest,
-  adapter: z.object({ id: z.literal("directory"), target: z.string().min(1) }).strict(),
+  adapter: z.object({ id: adapterId, target: z.string().min(1) }).strict(),
   authorizedBy: z.string().min(1).max(200), authorizedAt: z.string().datetime(),
   authority: z.object({ state: z.literal("publication-authorized"), published: z.literal(false) }).strict(),
 }).strict();
@@ -20,7 +30,7 @@ export const publicationIntentSchema = z.object({
 export const publicationReceiptSchema = z.object({
   kind: z.literal("intentcut-publication-receipt"), version: z.literal(1), project: z.string().min(1),
   releaseId, releaseReceiptDigest: digest, publicationIntentDigest: digest,
-  adapter: z.object({ id: z.literal("directory"), target: z.string().min(1), location: z.string().min(1) }).strict(),
+  adapter: z.object({ id: adapterId, target: z.string().min(1), location: z.string().min(1), performed: performedBy.optional() }).strict(),
   media: z.object({ sha256: digest, bytes: z.number().int().nonnegative() }).strict(),
   publishedBy: z.string().min(1), publishedAt: z.string().datetime(),
   authority: z.object({ state: z.literal("published"), published: z.literal(true) }).strict(),
@@ -28,9 +38,16 @@ export const publicationReceiptSchema = z.object({
 
 export type PublicationIntent = z.infer<typeof publicationIntentSchema>;
 export type PublicationReceipt = z.infer<typeof publicationReceiptSchema>;
-export type PublicationAdapterResult = { location: string; sha256: string; bytes: number; rollback: () => Promise<void> };
+export type PublicationAdapterId = z.infer<typeof adapterId>;
+export type PublicationAdapterResult = {
+  location: string;
+  sha256: string;
+  bytes: number;
+  performed: z.infer<typeof performedBy>;
+  rollback: () => Promise<void>;
+};
 export interface PublicationAdapter {
-  readonly id: "directory";
+  readonly id: PublicationAdapterId;
   publish(source: string, release: ReleaseReceipt, target: string): Promise<PublicationAdapterResult>;
 }
 
@@ -69,6 +86,22 @@ export function publicationIntentDigest(intent: PublicationIntent): string {
   return `sha256:${createHash("sha256").update(JSON.stringify(validated)).digest("hex")}`;
 }
 
+/** A directory target is a path on this machine; an external one is a stated location. */
+function resolveTarget(adapter: PublicationAdapterId, target: string): string {
+  if (adapter === "directory") return path.resolve(target);
+  const trimmed = target.trim();
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error(`Publication authorization requires an absolute http(s) URL for an external target: ${trimmed}`);
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error(`An external publication target must be an http(s) URL: ${trimmed}`);
+  }
+  return url.toString();
+}
+
 export async function authorizePublication(
   project: LoadedProject,
   release: ReleaseReceipt,
@@ -76,16 +109,17 @@ export async function authorizePublication(
   authorizedBy: string,
   confirmation: string,
   now = new Date(),
+  adapter: PublicationAdapterId = "directory",
 ): Promise<PublicationIntent> {
   const validated = releaseReceiptSchema.parse(release);
   if (!authorizedBy.trim()) throw new Error("Publication authorization requires the human publisher's name.");
   if (confirmation !== validated.releaseId) throw new Error("Publication confirmation must match the exact release id.");
-  if (!target.trim()) throw new Error("Publication authorization requires an explicit directory target.");
+  if (!target.trim()) throw new Error("Publication authorization requires an explicit target.");
   await verifySealedArtifact(project, validated);
   return publicationIntentSchema.parse({
     kind: "intentcut-publication-intent", version: 1, project: validated.project,
     releaseId: validated.releaseId, releaseReceiptDigest: releaseReceiptDigest(validated),
-    adapter: { id: "directory", target: path.resolve(target) },
+    adapter: { id: adapter, target: resolveTarget(adapter, target) },
     authorizedBy: authorizedBy.trim(), authorizedAt: now.toISOString(),
     authority: { state: "publication-authorized", published: false },
   });
@@ -96,7 +130,7 @@ export async function writePublicationIntent(project: LoadedProject, release: Re
   if (validated.releaseId !== release.releaseId || validated.releaseReceiptDigest !== releaseReceiptDigest(release)) {
     throw new Error("Publication authorization does not name this exact release receipt.");
   }
-  const output = path.join(releaseDirectory(project, release), "publication-intent-directory.json");
+  const output = path.join(releaseDirectory(project, release), `publication-intent-${validated.adapter.id}.json`);
   await writeFile(output, `${JSON.stringify(validated, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   return output;
 }
@@ -120,12 +154,36 @@ export class DirectoryPublicationAdapter implements PublicationAdapter {
       if (!media.isFile() || media.size !== release.media.bytes || sha256 !== release.media.sha256) {
         throw new Error("Publication failed: exported artifact identity does not match the sealed release.");
       }
-      return { location, sha256, bytes: media.size, rollback: () => rm(directory, { recursive: true, force: true }) };
+      return { location, sha256, bytes: media.size, performed: "by-intentcut", rollback: () => rm(directory, { recursive: true, force: true }) };
     } catch (error) {
       await rm(directory, { recursive: true, force: true });
       throw error;
     }
   }
+}
+
+/**
+ * Records a publication that a human performed, and performs none itself. It uploads
+ * nothing, opens no socket, and does not check that the stated location resolves — it
+ * cannot, without making the network request this tool has never made. What it asserts
+ * is narrower and checkable: this exact sealed artifact, by this hash, is what the named
+ * person says they put at that location. The claim is theirs; the binding is the record's.
+ */
+export class ExternalPublicationAdapter implements PublicationAdapter {
+  readonly id = "external" as const;
+
+  async publish(source: string, release: ReleaseReceipt, target: string): Promise<PublicationAdapterResult> {
+    const media = await stat(source);
+    const sha256 = await sha256File(source);
+    if (!media.isFile() || media.size !== release.media.bytes || sha256 !== release.media.sha256) {
+      throw new Error("Publication failed: the sealed artifact does not match its receipt.");
+    }
+    return { location: target, sha256, bytes: media.size, performed: "by-hand", rollback: async () => {} };
+  }
+}
+
+export function publicationAdapterFor(id: PublicationAdapterId): PublicationAdapter {
+  return id === "external" ? new ExternalPublicationAdapter() : new DirectoryPublicationAdapter();
 }
 
 export async function publishAuthorizedRelease(
@@ -143,7 +201,7 @@ export async function publishAuthorizedRelease(
   if (validatedIntent.releaseReceiptDigest !== releaseReceiptDigest(validatedRelease)) throw new Error("Publication blocked: release receipt changed after authorization.");
   if (validatedIntent.adapter.id !== adapter.id) throw new Error("Publication blocked: authorized adapter does not match the selected adapter.");
   const source = await verifySealedArtifact(project, validatedRelease);
-  const receiptPath = path.join(releaseDirectory(project, validatedRelease), "publication-receipt-directory.json");
+  const receiptPath = path.join(releaseDirectory(project, validatedRelease), `publication-receipt-${adapter.id}.json`);
   try {
     await stat(receiptPath);
     throw new Error("Publication blocked: a completion receipt already exists for this adapter.");
@@ -156,7 +214,7 @@ export async function publishAuthorizedRelease(
       kind: "intentcut-publication-receipt", version: 1, project: validatedRelease.project,
       releaseId: validatedRelease.releaseId, releaseReceiptDigest: releaseReceiptDigest(validatedRelease),
       publicationIntentDigest: publicationIntentDigest(validatedIntent),
-      adapter: { id: adapter.id, target: validatedIntent.adapter.target, location: result.location },
+      adapter: { id: adapter.id, target: validatedIntent.adapter.target, location: result.location, performed: result.performed },
       media: { sha256: result.sha256, bytes: result.bytes },
       publishedBy: validatedIntent.authorizedBy, publishedAt: now.toISOString(),
       authority: { state: "published", published: true },
