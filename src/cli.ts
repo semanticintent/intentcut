@@ -60,7 +60,9 @@ async function main(): Promise<void> {
   if (command === "init") {
     const directory = await initializeProject(manifestPath);
     console.log(`Initialized IntentCut production at ${directory}`);
-    console.log("Add opening.png and closing.png under assets, then edit intentcut.yaml.");
+    console.log("It renders as it stands, with placeholder cards. From that directory:");
+    console.log("  intentcut narrate intentcut.yaml --temporary");
+    console.log("  intentcut render  intentcut.yaml --preview");
     return;
   }
 

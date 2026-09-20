@@ -15,6 +15,20 @@ export interface RunProcessOptions {
   timeoutMilliseconds?: number;
 }
 
+function installationHint(command: string): string {
+  if (command === "ffmpeg" || command === "ffprobe") {
+    return "IntentCut compiles through FFmpeg, so it and ffprobe must be installed:\n"
+      + "  macOS:  brew install ffmpeg\n"
+      + "  Debian: sudo apt-get install ffmpeg\n"
+      + "  Other:  https://ffmpeg.org/download.html";
+  }
+  if (command === "say") {
+    return "Temporary narration uses the macOS `say` command, which exists only on macOS.\n"
+      + "On another platform, record the narration or declare a synthesised voice instead.";
+  }
+  return `Install ${command}, or make it available on your PATH.`;
+}
+
 export function runProcess(
   command: string,
   argumentsList: readonly string[],
@@ -52,6 +66,12 @@ export function runProcess(
     }, options.timeoutMilliseconds);
     child.on("error", (error) => {
       if (timer) clearTimeout(timer);
+      // A missing prerequisite arrives as a bare ENOENT naming only the binary, which
+      // reads as a bug in IntentCut rather than something absent from the machine.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        reject(new Error(`${command} was not found on your PATH.\n${installationHint(command)}`));
+        return;
+      }
       reject(error);
     });
     child.on("close", (code) => {

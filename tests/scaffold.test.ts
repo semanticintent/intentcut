@@ -13,6 +13,13 @@ describe("project initialization", () => {
     await access(path.join(root, "narration/generated"));
     await access(path.join(root, "narration/human"));
     expect(await readFile(path.join(root, "intentcut.yaml"), "utf8")).toContain("synthetic-prototype");
+
+    // A scaffold that cannot render is a scaffold nobody can try: the cards the
+    // manifest names have to exist, or the first render fails on a missing file.
+    for (const card of ["assets/opening.png", "assets/closing.png"]) {
+      await access(path.join(root, card));
+      expect((await readFile(path.join(root, card))).subarray(1, 4).toString()).toBe("PNG");
+    }
   });
 
   it("refuses to overwrite an existing production", async () => {

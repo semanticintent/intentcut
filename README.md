@@ -25,8 +25,19 @@ IntentCut is pre-release and not yet published to npm. Run it from a clone.
 
 ## Quickstart
 
-The quickstart example is self-contained: its placeholder media is generated
-locally with FFmpeg, so nothing outside this repository is needed.
+A new production renders as it stands. `init` writes placeholder title cards, so
+the first render works before you have made anything:
+
+```bash
+npm install
+npm run dev -- init ../my-video
+cd ../my-video
+intentcut narrate intentcut.yaml --temporary
+intentcut render  intentcut.yaml --preview
+```
+
+The worked example in this repository is self-contained too: its placeholder
+media is generated locally with FFmpeg, so nothing outside the clone is needed.
 
 ```bash
 git clone https://github.com/semanticintent/intentcut.git
