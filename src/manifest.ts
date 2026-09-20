@@ -70,12 +70,35 @@ const annotationSchema = z.object({
   tone: z.enum(["neutral", "accent", "warning"]).default("neutral"),
 }).strict();
 
-const narrationModeSchema = z.enum(["human-final", "synthetic-prototype"]);
+/**
+ * `synthetic-prototype` is scratch: a timing instrument that a final render refuses.
+ * `synthetic-final` is a deliberate editorial decision — a declared voice the creator
+ * has chosen to ship — and CONCEPT.md always listed that choice as the human's to make.
+ * The distinction the final render enforces is therefore not "is it a person?" but
+ * "was this voice declared and chosen?", so a scratch track can never ship by accident.
+ */
+const narrationModeSchema = z.enum(["human-final", "synthetic-prototype", "synthetic-final"]);
+
+/** Which voice synthesised the narration. Required before any section may ship. */
+const narrationSynthesisSchema = z.object({
+  provider: z.string().min(1).max(60),
+  model: z.string().min(1).max(120).optional(),
+  voice: z.string().min(1).max(120).optional(),
+}).strict();
 
 const singleNarrationSchema = z.object({
   source: z.string().min(1),
   mode: narrationModeSchema,
-}).strict();
+  synthesis: narrationSynthesisSchema.optional(),
+}).strict().superRefine((narration, context) => {
+  if (narration.mode === "synthetic-final" && !narration.synthesis) {
+    context.addIssue({
+      code: "custom",
+      message: "Shipping a synthesised voice requires declaring it: add synthesis with at least a provider.",
+      path: ["synthesis"],
+    });
+  }
+});
 
 const narrationSectionSchema = z.object({
   id: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/),
@@ -99,7 +122,17 @@ const narrationSectionSchema = z.object({
 const sectionedNarrationSchema = z.object({
   sections: z.array(narrationSectionSchema).min(1),
   generatedDirectory: z.string().min(1).default("narration/generated"),
+  synthesis: narrationSynthesisSchema.optional(),
 }).strict().superRefine((narration, context) => {
+  narration.sections.forEach((section, index) => {
+    if (section.mode === "synthetic-final" && !narration.synthesis) {
+      context.addIssue({
+        code: "custom",
+        message: "Shipping a synthesised voice requires declaring it: add audio.narration.synthesis with at least a provider.",
+        path: ["sections", index, "mode"],
+      });
+    }
+  });
   const ids = new Set<string>();
   narration.sections.forEach((section, index) => {
     if (ids.has(section.id)) {
@@ -257,6 +290,13 @@ export type ProjectManifest = z.infer<typeof projectManifestSchema>;
 export type ProjectScene = ProjectManifest["scenes"][number];
 export type Narration = NonNullable<ProjectManifest["audio"]>["narration"];
 export type NarrationSection = Extract<Narration, { sections: unknown }>["sections"][number];
+export type NarrationMode = z.infer<typeof narrationModeSchema>;
+export type NarrationSynthesis = z.infer<typeof narrationSynthesisSchema>;
+
+/** The declared voice for a section, whether narration is sectioned or a single track. */
+export function declaredSynthesis(project: LoadedProject): NarrationSynthesis | undefined {
+  return project.manifest.audio?.narration?.synthesis;
+}
 
 export interface LoadedProject {
   manifest: ProjectManifest;

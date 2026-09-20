@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { parseDuration } from "./duration.js";
-import type { LoadedProject, ProjectScene } from "./manifest.js";
+import type { LoadedProject, NarrationMode, ProjectScene } from "./manifest.js";
 import { resolveProjectPath } from "./manifest.js";
 import type { NarrationPlan } from "./narration.js";
 import { runProcess } from "./process.js";
@@ -23,7 +23,7 @@ export interface RenderPlan {
   outputPath: string;
   reportDirectory: string;
   arguments: string[];
-  narrationMode?: "human-final" | "synthetic-prototype";
+  narrationMode?: NarrationMode;
   syntheticNarrationSections: number;
   annotationAssets: AnnotationAsset[];
 }

@@ -2,7 +2,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { formatDuration, parseDuration } from "./duration.js";
 import { inspectMedia } from "./inspect.js";
-import type { LoadedProject, NarrationSection } from "./manifest.js";
+import type { LoadedProject, NarrationMode, NarrationSection } from "./manifest.js";
 import { resolveProjectPath } from "./manifest.js";
 import { runProcess } from "./process.js";
 import type { TimelinePlan, TimelineScene } from "./timeline.js";
@@ -10,7 +10,7 @@ import type { TimelinePlan, TimelineScene } from "./timeline.js";
 export interface NarrationSectionPlan {
   id: string;
   scene: string;
-  mode: "human-final" | "synthetic-prototype";
+  mode: NarrationMode;
   scriptPath: string;
   audioPath: string;
   startMilliseconds: number;
@@ -20,7 +20,10 @@ export interface NarrationSectionPlan {
 }
 export interface NarrationPlan {
   sections: NarrationSectionPlan[];
+  /** Scratch sections only. A final render refuses while this is non-zero. */
   syntheticCount: number;
+  /** Declared synthesised voices the creator has chosen to ship. */
+  syntheticFinalCount: number;
   humanCount: number;
   allFit: boolean;
 }
@@ -34,15 +37,16 @@ function sectionAudioPath(project: LoadedProject, section: NarrationSection): st
   return resolveProjectPath(project, path.join(narration.generatedDirectory, `${section.id}.aiff`));
 }
 
-export async function generateTemporaryNarration(project: LoadedProject): Promise<string[]> {
+/** Synthesises every section whose voice is generated, whether scratch or final. */
+export async function generateSyntheticNarration(project: LoadedProject): Promise<string[]> {
   const narration = project.manifest.audio?.narration;
   if (!narration || !("sections" in narration)) {
-    throw new Error("Temporary narration requires a sectioned narration manifest.");
+    throw new Error("Generated narration requires a sectioned narration manifest.");
   }
 
   const generated: string[] = [];
   for (const section of narration.sections) {
-    if (section.mode !== "synthetic-prototype") continue;
+    if (section.mode === "human-final") continue;
     const scriptPath = resolveProjectPath(project, section.script);
     const outputPath = sectionAudioPath(project, section);
     const script = (await readFile(scriptPath, "utf8")).trim();
@@ -131,6 +135,7 @@ export async function planNarration(
   return {
     sections,
     syntheticCount: sections.filter((section) => section.mode === "synthetic-prototype").length,
+    syntheticFinalCount: sections.filter((section) => section.mode === "synthetic-final").length,
     humanCount: sections.filter((section) => section.mode === "human-final").length,
     allFit: sections.every((section) => section.fits),
   };
@@ -148,7 +153,8 @@ export function formatNarrationPlan(plan: NarrationPlan): string {
     lines.push(`  Result:     ${section.fits ? "PASS" : "OVERFLOW"}`);
     lines.push("");
   }
-  lines.push(`Synthetic sections: ${plan.syntheticCount}`);
+  lines.push(`Prototype sections: ${plan.syntheticCount}`);
+  lines.push(`Synthesised final:  ${plan.syntheticFinalCount}`);
   lines.push(`Human sections:     ${plan.humanCount}`);
   lines.push(`Result:             ${plan.allFit ? "PASS" : "REVISE"}`);
   return lines.join("\n");

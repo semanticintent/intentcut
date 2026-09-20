@@ -800,3 +800,31 @@ and a field path an author can find by eye.
 
 The shoot is the only remaining variable. The briefs were written before the
 footage, which is the order the concept always intended.
+
+### 2026-09-20 — A final render refuses scratch, not synthesis
+
+The narration gate was a binary: human-final shipped, anything synthetic did
+not. That was a Milestone 3 simplification standing in for a design decision,
+and the concept had already made the decision the other way — choosing whether
+the final voice is human or synthetic is listed there among the creator's own
+judgements, alongside approving the work and authorizing publication.
+
+So the gate now tests a different thing. Not "is a person speaking?" but "was
+this voice declared and chosen?". A section marked `synthetic-final` must name
+its voice through `audio.narration.synthesis`, and a manifest that ships an
+undeclared synthesised voice does not load. A `synthetic-prototype` section
+still blocks a final render exactly as before, so a scratch track cannot reach
+an audience by being forgotten about, which was the only thing the binary was
+really protecting.
+
+The declaration is ordinary manifest content, so the semantic revision binds it
+for free: changing the voice invalidates a standing approval. The release
+candidate and receipt also carry it in plain words, because a receipt is read by
+people and "synthesised by say, approved by Michael Shatny" says more than a
+hash of the same fact.
+
+This also removes a hazard the first forward production measured. The prototype
+voice reads about a third faster than a person, so every capacity margin under
+it was optimistic and a section could pass at prototype and overflow once
+actually spoken. When the declared voice is the shipped voice, the narration
+report is not a prediction of the final timing; it is the final timing.

@@ -4,7 +4,7 @@ import { formatDuration } from "./duration.js";
 import { checkBuild, formatBuildReport } from "./check.js";
 import { inspectProjectMedia } from "./inspect.js";
 import { loadProject, replaceNarrationSection, resolveArtifactPath } from "./manifest.js";
-import { formatNarrationPlan, generateTemporaryNarration, planNarration, writeNarrationReport } from "./narration.js";
+import { formatNarrationPlan, generateSyntheticNarration, planNarration, writeNarrationReport } from "./narration.js";
 import { compileTimeline } from "./timeline.js";
 import { createRenderPlan, renderPreview } from "./render.js";
 import { initializeProject } from "./scaffold.js";
@@ -216,7 +216,7 @@ async function main(): Promise<void> {
   if (narration && "sections" in narration) {
     if (command === "narrate") {
       if (!process.argv.includes("--temporary")) throw new Error("Pass --temporary to generate prototype narration.");
-      const generated = await generateTemporaryNarration(project);
+      const generated = await generateSyntheticNarration(project);
       console.log(`Generated ${generated.length} temporary narration section(s).`);
     }
     narrationPlan = await planNarration(project, timeline);
@@ -266,9 +266,13 @@ async function main(): Promise<void> {
       process.exitCode = 2;
       return;
     }
-    const candidate = await createReleaseCandidate(project, report);
+    const candidate = await createReleaseCandidate(project, report, narrationPlan);
     const output = await writeReleaseCandidate(project, candidate);
     console.log(`\nCANDIDATE  ${candidate.media.sha256} · ${candidate.media.bytes} bytes`);
+    if (candidate.narration) {
+      const voice = [candidate.narration.provider, candidate.narration.model, candidate.narration.preset].filter(Boolean).join(" · ");
+      console.log(`NARRATION  ${candidate.narration.voice}${voice ? ` · ${voice}` : ""} · ${candidate.narration.sections} section(s)`);
+    }
     console.log(`           ${output}`);
     console.log(`APPROVE    --confirm ${releaseCandidateToken(candidate)}`);
     return;
@@ -283,7 +287,11 @@ async function main(): Promise<void> {
       narration && !("sections" in narration) && narration.mode === "synthetic-prototype" ? 1 : 0
     );
     if (final && syntheticCount > 0) {
-      throw new Error(`Final render blocked: ${syntheticCount} synthetic prototype narration section(s) remain.`);
+      throw new Error(
+        `Final render blocked: ${syntheticCount} synthetic prototype narration section(s) remain.\n`
+        + "Replace them with human-final audio, or declare the voice you intend to ship "
+        + "(audio.narration.synthesis) and mark those sections synthetic-final.",
+      );
     }
     if (final && narrationPlan && !narrationPlan.allFit) {
       throw new Error("Final render blocked: one or more narration sections exceed their assigned capacity.");
