@@ -1,5 +1,7 @@
 # IntentCut
 
+[![check](https://github.com/semanticintent/intentcut/actions/workflows/check.yml/badge.svg)](https://github.com/semanticintent/intentcut/actions/workflows/check.yml)
+
 Declarative, agent-assisted video production.
 
 IntentCut explores a local-first workflow in which recordings are inputs,
@@ -383,6 +385,12 @@ Run all compiler and test checks with:
 ```bash
 npm run check
 ```
+
+The same checks run on every push and pull request, on Linux as well as macOS,
+because everything but temporary narration is claimed to be cross-platform and a
+claim nothing exercises is a claim nobody has checked. A second job runs the
+quickstart above verbatim on a fresh machine, which is what keeps the documented
+path working for someone who is not the author.
 
 See [MVP](./docs/MVP.md) for the bounded first release and
 [progress](./docs/PROGRESS.md) for the live implementation record.

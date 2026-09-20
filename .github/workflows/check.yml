@@ -1,0 +1,103 @@
+# Every guarantee this project makes is enforced by a refusal test, which is only
+# true for as long as the suite actually runs. It runs on Linux as well as macOS
+# because the README claims everything but temporary narration is cross-platform,
+# and a claim nothing exercises is a claim nobody has checked.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: typecheck and tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Several tests probe and render real media rather than stubbing a probe,
+      # so FFmpeg is a test dependency here, not just a runtime one.
+      - name: Install FFmpeg
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+          else
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -1
+          ffprobe -version | head -1
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+  quickstart:
+    name: the documented quickstart, on a machine that is not the author's
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - run: npm ci
+
+      # Exactly what the README tells a new reader to run. An earlier review found
+      # examples that only worked on the workstation they were authored on; this is
+      # what stops that returning.
+      - name: Generate the self-contained example media
+        run: npm run example:media
+
+      - name: Validate
+        run: npm run dev -- validate examples/quickstart/intentcut.yaml
+
+      - name: Plan
+        run: npm run dev -- plan examples/quickstart/intentcut.yaml
+
+      - name: Render a preview
+        run: npm run dev -- render examples/quickstart/intentcut.yaml --preview
+
+      - name: Check the rendered artifact
+        run: npm run dev -- check examples/quickstart/intentcut.yaml
+
+      - name: Every reference manifest still validates
+        run: |
+          for manifest in examples/*/intentcut.yaml; do
+            echo "── $manifest"
+            npm run dev --silent -- validate "$manifest"
+          done
+
+      - name: The build report from a machine nobody authored this on
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quickstart-build-report
+          path: examples/quickstart/reports/
+          if-no-files-found: warn
