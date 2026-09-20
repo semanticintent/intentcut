@@ -920,3 +920,23 @@ duration would: not "this section overflows" after rendering it, but which
 sentence will, before anything is rendered at all. Captions stop being one cue
 per section for the same reason. Timing becomes a compile-time fact, which is
 where everything else in this project already lives.
+
+### 2026-09-20 — A scaffold that renders
+
+Packing the project as it would be published showed what someone installing it
+would actually get: the command line, and nothing to point it at. The examples
+live in the repository rather than the package, so the documented quickstart
+referred to files that would not be there — and `init` left the assets directory
+empty, so a new production named two cards that did not exist and could not be
+rendered until the reader drew them.
+
+So `init` now writes the cards. They are deliberately plain and say which file
+to replace, which makes the first render succeed and makes nobody mistake them
+for finished artwork. A scaffold that cannot render is a scaffold nobody can
+try, and the distance between installing something and seeing it work is most of
+whether anyone finds out what it does.
+
+A missing prerequisite now explains itself as well. FFmpeg arriving as a bare
+ENOENT naming only the binary reads as a fault in IntentCut rather than
+something absent from the machine, which is a poor first impression for a
+dependency the README does state.

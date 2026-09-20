@@ -22,6 +22,10 @@ IntentCut is pre-release: it has no published version and is run from a clone.
   absolutely; reads from outside must be declared with `sources.outsideProject`.
 - Continuous integration: typecheck and tests on Linux and macOS, plus the
   documented quickstart run verbatim on a fresh machine.
+- `intentcut init` writes placeholder title cards, so a new production renders
+  before anything has been made for it.
+- A missing prerequisite explains itself: FFmpeg and `say` say what they are for
+  and how to install them, instead of surfacing a bare ENOENT.
 
 ### Changed
 
