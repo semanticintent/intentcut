@@ -34,6 +34,17 @@ Say what changed and why it was worth changing. The existing history is the
 model: what was wrong, what the fix assumes, and what it deliberately does not
 do. Prose, not bullet points.
 
+## Constraints that are not preferences
+
+Some choices here look like taste and are not. The clearest is narration:
+rendering the same manifest twice produces byte-identical output, and narration
+is an input to the render, so a speech synthesiser that samples would break the
+central claim. That rules out most of the models with the best scores and the
+most useful features. If you are changing anything in that area, read
+[docs/PROGRESS.md](docs/PROGRESS.md) first — a change that improves how the
+output sounds while making it unreproducible will pass every check in the suite
+and still be wrong.
+
 ## Scope
 
 The bounded first release is described in [docs/MVP.md](docs/MVP.md). A change

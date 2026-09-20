@@ -883,3 +883,40 @@ than one per attempt.
 
 The reference productions now declare that reach in a line, which is the
 difference between a property the manifest has and one it merely happens to have.
+
+### 2026-09-20 — Why the voice must not be the best-sounding one
+
+Declaring a synthesised voice as final raised the obvious next question: which
+engine. The obvious answer is wrong, and the reason is easy to lose.
+
+Rendering the same manifest repeatedly produces byte-identical output. That is
+not a curiosity; it is the claim this project makes about itself, and narration
+is an input to the render. So a synthesiser that samples would break it. Feed
+the same script to an autoregressive model twice and you get two different
+readings, a different video, a different hash, and an approval that has gone
+stale without anything about the intent having changed.
+
+That rules out, on architecture alone, almost everything with the better
+headline features — including every model that can be told to say a line in
+exactly so many seconds, which would otherwise be the most useful capability
+imaginable for fitting narration to a scene. Duration control of that kind is
+achieved by generating token by token, and generating token by token is the
+thing that cannot be reproduced. The two properties are in tension, and only one
+of them is load-bearing here.
+
+What is wanted instead is a deterministic forward pass: the same text through
+the same weights giving the same samples every time. Kokoro is that, and its
+size and licence — which is what first recommended it — turn out to be the least
+important things about it. A future comparison that ranks candidates by how good
+they sound will pick something that quietly breaks reproducibility, and the
+build will not complain, because the render will still pass every check. It will
+simply no longer be the same film twice.
+
+There is a consolation for giving up duration control. A model of this kind
+predicts how long each phoneme will last as part of synthesising it, so the
+timing is already computed and can be read out rather than measured afterwards.
+That answers the narration-fit question earlier and more precisely than a target
+duration would: not "this section overflows" after rendering it, but which
+sentence will, before anything is rendered at all. Captions stop being one cue
+per section for the same reason. Timing becomes a compile-time fact, which is
+where everything else in this project already lives.
