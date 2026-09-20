@@ -18,7 +18,7 @@ import { createAgentProjectContext } from "./agent.js";
 import { loadAgentEditProposal, validateAgentEditProposal } from "./edit-proposal.js";
 import { approveReleaseCandidate, createReleaseCandidate, loadReleaseApproval, loadReleaseCandidate, releaseCandidateToken, sealApprovedRelease, writeReleaseApproval, writeReleaseCandidate } from "./release.js";
 import { loadReleaseReceipt } from "./release.js";
-import { authorizePublication, DirectoryPublicationAdapter, loadPublicationIntent, publishAuthorizedRelease, writePublicationIntent } from "./publication.js";
+import { authorizePublication, loadPublicationIntent, publicationAdapterFor, publishAuthorizedRelease, writePublicationIntent } from "./publication.js";
 
 function usage(): string {
   return [
@@ -34,7 +34,7 @@ function usage(): string {
     "  intentcut candidate <manifest>",
     "  intentcut approve <manifest> <candidate.json> --by <name> --confirm <token>",
     "  intentcut seal <manifest> <candidate.json> <approval.json>",
-    "  intentcut authorize-publication <manifest> <release-receipt.json> --adapter directory --to <directory> --by <name> --confirm <release-id>",
+    "  intentcut authorize-publication <manifest> <release-receipt.json> --adapter directory|external --to <directory|url> --by <name> --confirm <release-id>",
     "  intentcut publish <manifest> <release-receipt.json> <publication-intent.json>",
     "  intentcut ingest <manifest> <receipt.json>",
     "  intentcut inspect <manifest>",
@@ -115,11 +115,14 @@ async function main(): Promise<void> {
     const target = targetIndex >= 0 ? process.argv[targetIndex + 1] : undefined;
     const authorizedBy = byIndex >= 0 ? process.argv[byIndex + 1] : undefined;
     const confirmation = confirmIndex >= 0 ? process.argv[confirmIndex + 1] : undefined;
-    if (!receiptPath || adapter !== "directory" || !target || !authorizedBy || !confirmation) {
-      throw new Error("authorize-publication requires a release receipt, --adapter directory, --to <directory>, --by <name>, and --confirm <release-id>.");
+    if (!receiptPath || (adapter !== "directory" && adapter !== "external") || !target || !authorizedBy || !confirmation) {
+      throw new Error(
+        "authorize-publication requires a release receipt, --adapter directory|external, --to <directory|url>, --by <name>, and --confirm <release-id>.\n"
+        + "  directory copies the artifact into a local folder; external records that you published it somewhere yourself.",
+      );
     }
     const release = await loadReleaseReceipt(await resolveArtifactPath(project, receiptPath));
-    const intent = await authorizePublication(project, release, target, authorizedBy, confirmation);
+    const intent = await authorizePublication(project, release, target, authorizedBy, confirmation, new Date(), adapter);
     const output = await writePublicationIntent(project, release, intent);
     console.log(`AUTHORIZED  ${intent.releaseId} → ${intent.adapter.id}`);
     console.log(`            ${intent.adapter.target}`);
@@ -133,14 +136,18 @@ async function main(): Promise<void> {
     const receiptPath = process.argv[4];
     const intentPath = process.argv[5];
     if (!receiptPath || !intentPath) throw new Error("publish requires release receipt and publication intent JSON files.");
+    const intent = await loadPublicationIntent(await resolveArtifactPath(project, intentPath));
     const result = await publishAuthorizedRelease(
       project,
       await loadReleaseReceipt(await resolveArtifactPath(project, receiptPath)),
-      await loadPublicationIntent(await resolveArtifactPath(project, intentPath)),
-      new DirectoryPublicationAdapter(),
+      intent,
+      publicationAdapterFor(intent.adapter.id),
     );
     console.log(`PUBLISHED  ${result.receipt.releaseId} → ${result.receipt.adapter.id}`);
     console.log(`           ${result.receipt.adapter.location}`);
+    if (result.receipt.adapter.performed === "by-hand") {
+      console.log("           recorded, not performed · IntentCut uploaded nothing and did not verify this location");
+    }
     console.log(`RECEIPT    ${result.receiptPath}`);
     return;
   }

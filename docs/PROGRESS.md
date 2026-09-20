@@ -828,3 +828,38 @@ voice reads about a third faster than a person, so every capacity margin under
 it was optimistic and a section could pass at prototype and overflow once
 actually spoken. When the declared voice is the shipped voice, the narration
 report is not a prediction of the final timing; it is the final timing.
+
+### 2026-09-20 — Testing the thing every other test assumed
+
+Candidate, approval, and seal all re-validate against a build report's `passed`,
+and every test in the repository fabricated that report. The one component the
+whole ceremony trusts had never been run in a test at all.
+
+It holds up, against media FFmpeg actually renders: a mismatched resolution, a
+render that is not the length the timeline planned, a manifest that declares
+narration over a silent output, a scratch voice in final mode, and a synthesised
+voice the manifest never declared are all refused. Digital silence measures as
+`-inf`, which parses to `NaN`, and since every comparison against `NaN` is false
+the loudness checks fail rather than quietly reading as satisfied — worth
+knowing deliberately rather than by luck.
+
+Reading it closely turned up one real gap. Sectioned narration carries its mode
+per section, so without a plan there is nothing to read it from; the fallback
+reported "human-final" and would have let a project of prototypes pass a final
+check. Unreachable through the CLI, which always builds the plan, but reachable
+through the API. An unanswerable question now fails closed.
+
+### 2026-09-20 — A record that does not claim the tool did the work
+
+The first production went to a video host, and the sealed receipt still said
+`published: false` — true about the directory adapter, silent about what had
+actually happened. The only adapter copied files locally, so the ceremony had
+nowhere to record a publication performed by a person.
+
+The `external` adapter uploads nothing and claims nothing. It records that a
+named human put this exact sealed artifact, by hash, at a location they state.
+It opens no socket and does not verify that the location resolves, because it
+cannot without making a request this tool has never made. The claim belongs to
+the person; the binding belongs to the record. Every publication receipt now
+says which adapter moved the bytes — `by-intentcut` or `by-hand` — so a record
+can never imply the tool did something it did not do.

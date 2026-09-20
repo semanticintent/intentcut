@@ -290,10 +290,21 @@ rerunning the same release cannot overwrite the bundle.
 
 Publication is a second human-only ceremony. `authorize-publication` binds a
 named person, exact sealed-release receipt, adapter, and target in an immutable
-intent record. Only then can `publish` invoke the bounded directory adapter,
-which copies the artifact exclusively and writes a completion receipt. This
-reference adapter performs no network request and makes no claim that a target
-is publicly visible; future service adapters must inherit the same contract.
+intent record. Only then can `publish` invoke an adapter and write a completion
+receipt. Two adapters ship, and the receipt records which of them moved the
+bytes, so it can never imply the tool did something it did not do:
+
+- `directory` copies the artifact exclusively into a local folder and verifies
+  what it wrote. It performs no network request and makes no claim that a target
+  is publicly visible. Its receipts record `performed: by-intentcut`.
+- `external` uploads nothing. When you publish a release yourself — to a video
+  host, a client, anywhere — it records that a named person put *this exact
+  sealed artifact*, by hash, at a location they state. It opens no socket and
+  does not check that the location resolves, because it cannot without making a
+  request this tool has never made. The claim is yours; the binding is the
+  record's. Its receipts record `performed: by-hand`.
+
+Future service adapters must inherit the same contract.
 Neither operation is exposed through MCP.
 
 These ceremonies bind a human decision to an exact artifact and make accidents
