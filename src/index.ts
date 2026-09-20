@@ -16,7 +16,7 @@ export { createCaptionPlan, writeCaptions } from "./captions.js";
 export { inspectMedia, inspectProjectMedia } from "./inspect.js";
 export { loadProject, projectManifestSchema, resolveProjectPath } from "./manifest.js";
 export { replaceNarrationSection } from "./manifest.js";
-export { formatNarrationPlan, generateTemporaryNarration, planNarration, writeNarrationReport } from "./narration.js";
+export { formatNarrationPlan, generateSyntheticNarration, planNarration, writeNarrationReport } from "./narration.js";
 export { compileTimeline } from "./timeline.js";
 export { createRenderPlan, renderPreview } from "./render.js";
 export { initializeProject } from "./scaffold.js";

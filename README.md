@@ -314,8 +314,32 @@ npm run dev -- narrate examples/narration-demo/intentcut.yaml --temporary
 npm run dev -- render examples/narration-demo/intentcut.yaml --preview
 ```
 
-Temporary narration (macOS `say`) is valid for previews. A final render is
-blocked until every section is explicitly replaced with human-final audio, and
+Temporary narration (macOS `say`) is valid for previews. A final render refuses
+scratch, not synthesis. Either replace each section with human-final audio, or
+declare the voice you intend to ship and mark those sections `synthetic-final`:
+
+```yaml
+audio:
+  narration:
+    synthesis:
+      provider: say
+      model: macos-say
+      voice: Samantha
+    sections:
+      - id: opening
+        scene: opening
+        script: narration/scripts/01-opening.md
+        mode: synthetic-final
+```
+
+Choosing whether the final voice is human or synthesised has always been the
+creator's decision; what the manifest insists on is that the choice is declared.
+An undeclared `synthetic-final` section fails to load at all, and a
+`synthetic-prototype` section still blocks a final render, so a scratch track
+cannot reach an audience by being forgotten about. The declaration is folded
+into the semantic revision and recorded in the release receipt, which then
+states the voice beside the human who approved it.
+
 `replace-voice` refuses a missing file or one from the generated narration
 directory:
 

@@ -134,11 +134,23 @@ export async function checkBuild(
     });
     const narration = project.manifest.audio.narration;
     const syntheticCount = narrationPlan?.syntheticCount ?? (!("sections" in narration) && narration.mode === "synthetic-prototype" ? 1 : 0);
+    const syntheticFinalCount = narrationPlan?.syntheticFinalCount ?? (!("sections" in narration) && narration.mode === "synthetic-final" ? 1 : 0);
+    const synthesis = narration.synthesis;
+    // A final render refuses scratch, not synthesis. A declared, chosen voice ships;
+    // an undeclared one cannot, so a prototype track can never reach an audience by
+    // being forgotten about.
+    const declaredVoice = synthesis
+      ? [synthesis.provider, synthesis.model, synthesis.voice].filter(Boolean).join(" · ")
+      : "undeclared";
     checks.push({
       name: "Narration mode",
-      passed: !final || syntheticCount === 0,
-      actual: syntheticCount === 0 ? "human-final" : `${syntheticCount} synthetic-prototype section(s)`,
-      expected: final ? "human-final" : "prototype or human-final",
+      passed: (!final || syntheticCount === 0) && (syntheticFinalCount === 0 || synthesis !== undefined),
+      actual: syntheticCount > 0
+        ? `${syntheticCount} synthetic-prototype section(s)`
+        : syntheticFinalCount > 0
+          ? `synthetic-final · ${declaredVoice}`
+          : "human-final",
+      expected: final ? "human-final or declared synthetic-final" : "prototype, human-final, or declared synthetic-final",
     });
     if (narrationPlan && "sections" in narration) {
       const generatedDirectory = resolveProjectPath(project, narration.generatedDirectory);

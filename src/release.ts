@@ -7,14 +7,30 @@ import { createAgentProjectContext } from "./agent.js";
 import type { BuildReport } from "./check.js";
 import type { LoadedProject } from "./manifest.js";
 import { resolveProjectPath } from "./manifest.js";
+import type { NarrationPlan } from "./narration.js";
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
+
+/**
+ * How the narration in this exact artifact was voiced. The semantic revision already
+ * binds it, because the declaration lives in the manifest — but a receipt is read by
+ * people, and a record that states "synthesised by X, approved by Y" says more than a
+ * hash does. Optional, so receipts written before this existed still parse.
+ */
+const narrationProvenanceSchema = z.object({
+  voice: z.enum(["human-final", "synthetic-final", "mixed"]),
+  provider: z.string().min(1).max(60).optional(),
+  model: z.string().min(1).max(120).optional(),
+  preset: z.string().min(1).max(120).optional(),
+  sections: z.number().int().nonnegative(),
+}).strict();
 
 export const releaseCandidateSchema = z.object({
   kind: z.literal("intentcut-release-candidate"), version: z.literal(1), project: z.string().min(1),
   manifestRevision: digest,
   media: z.object({ source: z.string().min(1), sha256: digest, bytes: z.number().int().nonnegative() }).strict(),
   validation: z.object({ mode: z.literal("final"), passed: z.literal(true), report: z.string().min(1) }).strict(),
+  narration: narrationProvenanceSchema.optional(),
   authority: z.object({ state: z.literal("release-candidate"), approved: z.literal(false), released: z.literal(false) }).strict(),
 }).strict();
 
@@ -31,6 +47,7 @@ export const releaseReceiptSchema = z.object({
   manifestRevision: digest,
   media: z.object({ source: z.string().min(1), artifact: z.string().min(1), sha256: digest, bytes: z.number().int().nonnegative() }).strict(),
   approval: z.object({ approvedBy: z.string().min(1), approvedAt: z.string().datetime() }).strict(),
+  narration: narrationProvenanceSchema.optional(),
   sealedAt: z.string().datetime(),
   authority: z.object({ state: z.literal("released"), approved: z.literal(true), released: z.literal(true), published: z.literal(false) }).strict(),
 }).strict();
@@ -77,7 +94,25 @@ function assertFinalPassingReport(project: LoadedProject, report: BuildReport, s
   }
 }
 
-export async function createReleaseCandidate(project: LoadedProject, report: BuildReport): Promise<ReleaseCandidate> {
+/** Summarise how this artifact was voiced, from the manifest's own declaration. */
+function narrationProvenance(project: LoadedProject, plan?: NarrationPlan): z.infer<typeof narrationProvenanceSchema> | undefined {
+  const narration = project.manifest.audio?.narration;
+  if (!narration) return undefined;
+  const human = plan ? plan.humanCount : (!("sections" in narration) && narration.mode === "human-final" ? 1 : 0);
+  const synthetic = plan ? plan.syntheticFinalCount : (!("sections" in narration) && narration.mode === "synthetic-final" ? 1 : 0);
+  if (human === 0 && synthetic === 0) return undefined;
+  const voice = human > 0 && synthetic > 0 ? "mixed" : synthetic > 0 ? "synthetic-final" : "human-final";
+  const synthesis = narration.synthesis;
+  return {
+    voice,
+    sections: human + synthetic,
+    ...(synthesis?.provider ? { provider: synthesis.provider } : {}),
+    ...(synthesis?.model ? { model: synthesis.model } : {}),
+    ...(synthesis?.voice ? { preset: synthesis.voice } : {}),
+  };
+}
+
+export async function createReleaseCandidate(project: LoadedProject, report: BuildReport, narrationPlan?: NarrationPlan): Promise<ReleaseCandidate> {
   assertFinalPassingReport(project, report, "Release candidate");
   const outputPath = resolveProjectPath(project, project.manifest.output.file);
   const media = await stat(outputPath);
@@ -87,6 +122,7 @@ export async function createReleaseCandidate(project: LoadedProject, report: Bui
     manifestRevision: createAgentProjectContext(project).project.revision,
     media: { source: project.manifest.output.file, sha256: await sha256File(outputPath), bytes: media.size },
     validation: { mode: "final", passed: true, report: path.join(project.manifest.output.reportDirectory, "build-report.json") },
+    ...(narrationProvenance(project, narrationPlan) ? { narration: narrationProvenance(project, narrationPlan)! } : {}),
     authority: { state: "release-candidate", approved: false, released: false },
   };
 }
@@ -214,6 +250,7 @@ export async function sealApprovedRelease(
         bytes: artifactStat.size,
       },
       approval: { approvedBy: validatedApproval.approvedBy, approvedAt: validatedApproval.approvedAt },
+      ...(validatedCandidate.narration ? { narration: validatedCandidate.narration } : {}),
       sealedAt: now.toISOString(),
       authority: { state: "released", approved: true, released: true, published: false },
     });
